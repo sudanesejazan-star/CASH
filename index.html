@@ -277,6 +277,7 @@ button,input,select,textarea{font-family:'Tajawal',Arial,sans-serif;}
       <button class="logout-btn" onclick="doLogout()">خروج</button>
     </div>
     <div class="tab-bar" id="tab-bar"></div>
+    <div style="background:rgba(0,0,0,.2);padding:4px 14px;font-size:11px;font-weight:600;" class="sync-indicator">🟡 جاري الاتصال...</div>
   </div>
   <div class="screens">
 
@@ -435,12 +436,17 @@ button,input,select,textarea{font-family:'Tajawal',Arial,sans-serif;}
         </div>
         <button class="save-btn" id="save-btn" onclick="saveReceipt()">💾 حفظ وطباعة السند</button>
         <button class="save-btn print-btn" onclick="printLast()">🖨️ طباعة آخر سند</button>
+      <button class="save-btn" onclick="syncToServer()" id="sync-btn-coll"
+        style="margin-top:6px;background:linear-gradient(135deg,#1a5fa8,#0d3d6e);font-size:14px;">
+        ☁️ رفع بياناتي لقاعدة البيانات
+      </button>
       </div>
 
       <!-- Recent receipts -->
       <div class="card" style="padding:0;overflow:hidden;">
-        <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+        <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">
           <div class="ctitle" style="margin:0;">سنداتي اليوم</div>
+          <div style="font-size:11px;font-weight:600;" class="sync-indicator">🟡 جاري...</div>
           <button class="ibtn p" onclick="exportMyExcel()">📥 Excel</button>
         </div>
         <div id="my-receipts-list">
@@ -453,6 +459,19 @@ button,input,select,textarea{font-family:'Tajawal',Arial,sans-serif;}
     <div class="screen" id="sc-finance">
       <!-- Settlement cards per collector -->
       <div id="settlement-cards"></div>
+
+      <!-- SYNC BANNER -->
+      <div id="sync-banner" style="background:linear-gradient(135deg,#1a5fa8,#0d3d6e);border-radius:var(--r);padding:14px 16px;margin-bottom:12px;display:flex;align-items:center;gap:12px;">
+        <div style="font-size:24px;flex-shrink:0;">☁️</div>
+        <div style="flex:1;color:#fff;">
+          <div style="font-size:13px;font-weight:800;">مزامنة البيانات مع قاعدة البيانات</div>
+          <div style="font-size:11px;opacity:.8;margin-top:2px;" id="sync-status-lbl">اضغط لرفع البيانات المحلية</div>
+        </div>
+        <button onclick="syncToServer()" id="sync-btn"
+          style="background:var(--gold);color:#1a1a1a;border:none;border-radius:var(--r-sm);padding:9px 16px;font-size:13px;font-weight:800;cursor:pointer;flex-shrink:0;font-family:'Tajawal',Arial;">
+          📤 رفع الآن
+        </button>
+      </div>
 
       <!-- All receipts search -->
       <div class="card" style="padding:0;overflow:hidden;">
@@ -624,6 +643,7 @@ async function loadReceipts(){
   updateSeq();
   buildCollectorFilter();
   if(curUser.role==='finance'){ renderSettlements(); searchReceipts(); }
+  setTimeout(checkAndSyncPending, 2000);
 }
 
 /* ══ AMOUNT ══ */
@@ -681,30 +701,55 @@ async function saveReceipt(){
     created_at:now.toISOString()
   };
 
-  // Save locally first (always works)
-  allReceipts.unshift(rec);
+  // ── حفظ محلي فوري ──
   var local=LS.get('col_receipts',[]);
   local.unshift(rec);
   LS.set('col_receipts',local);
-  lastRec=rec;
+  allReceipts.unshift(rec);
+
+  // ── محاولة الحفظ السحابي ──
+  var savedToCloud = false;
+  if(useDB){
+    try{
+      var res = await sb.from('col_receipts').insert(rec);
+      if(!res.error){
+        savedToCloud = true;
+        // Mark as synced in local
+        local[0].synced = true;
+        LS.set('col_receipts', local);
+      } else {
+        console.log('Cloud save failed:', res.error.message);
+        // Mark as pending sync
+        local[0].synced = false;
+        local[0].sync_pending = true;
+        LS.set('col_receipts', local);
+      }
+    }catch(e){
+      local[0].synced = false;
+      local[0].sync_pending = true;
+      LS.set('col_receipts', local);
+    }
+  } else {
+    local[0].synced = false;
+    local[0].sync_pending = true;
+    LS.set('col_receipts', local);
+  }
+
+  lastRec = rec;
   clearForm();
   updateStats();
   renderMyReceipts();
   updateSeq();
   printReceipt(rec);
-  showToast('✓ تم حفظ '+rec.seq,'ok');
   btn.disabled=false;
   btn.innerHTML='💾 حفظ وطباعة السند';
 
-  // Try Supabase in background (non-blocking)
-  if(useDB){
-    sb.from('col_receipts').insert(rec).then(function(res){
-      if(res.error){
-        console.log('Supabase sync failed:', res.error.message);
-      } else {
-        showToast('✓ '+rec.seq+' — محفوظ محلياً وسحابياً','ok');
-      }
-    }).catch(function(e){ console.log('Supabase error:', e); });
+  if(savedToCloud){
+    showToast('✅ '+rec.seq+' — محفوظ محلياً وسحابياً','ok');
+  } else {
+    showToast('⚠️ '+rec.seq+' — محفوظ محلياً فقط (سيُرفع تلقائياً عند الاتصال)','warn');
+    // Schedule auto-retry
+    scheduleAutoSync();
   }
 }
 
@@ -730,6 +775,7 @@ function renderMyReceipts(){
       +'<div style="flex:1;min-width:0;">'
       +'<div style="font-size:13px;font-weight:700;">'+r.name+'</div>'
       +'<div style="font-size:11px;color:var(--muted);">'+r.description+' · '+r.time+'</div>'
+      +'<div style="font-size:10px;margin-top:2px;">'+(r.synced?'<span style="color:#2e6b4f;">☁️ مزامن</span>':'<span style="color:#d35400;">📱 محلي فقط</span>')+'</div>'
       +'</div>'
       +'<div style="font-size:15px;font-weight:800;color:var(--gd);">'+r.amount.toLocaleString('ar-SA')+'<span style="font-size:10px;color:var(--muted);"> ر.س</span></div>'
       +'<button class="ibtn p" onclick="printReceipt(allReceipts['+allReceipts.indexOf(r)+'])">🖨️</button>'
@@ -1067,6 +1113,220 @@ function amtWords(n){
 }
 
 updateBeneficiaryDisplay();
+
+
+/* ══ AUTO SYNC ══ */
+var syncTimer = null;
+var isSyncing = false;
+
+function scheduleAutoSync(){
+  // Retry every 30 seconds
+  if(syncTimer) clearInterval(syncTimer);
+  syncTimer = setInterval(function(){
+    autoSyncPending();
+  }, 30000);
+}
+
+async function autoSyncPending(){
+  if(isSyncing || !useDB) return;
+  var local = LS.get('col_receipts',[]);
+  var pending = local.filter(function(r){ return r.sync_pending || !r.synced; });
+  if(!pending.length){
+    if(syncTimer){ clearInterval(syncTimer); syncTimer=null; }
+    return;
+  }
+
+  isSyncing = true;
+  updateSyncIndicator('syncing', pending.length);
+
+  try{
+    // Get existing IDs to avoid duplicates
+    var existRes = await sb.from('col_receipts').select('id');
+    var existIds = (existRes.data||[]).map(function(r){return r.id;});
+    var toUpload = pending.filter(function(r){ return existIds.indexOf(r.id)<0; });
+
+    if(toUpload.length > 0){
+      // Upload in batches
+      for(var i=0; i<toUpload.length; i+=10){
+        var batch = toUpload.slice(i,i+10);
+        var res = await sb.from('col_receipts').insert(batch);
+        if(!res.error){
+          // Mark as synced
+          batch.forEach(function(uploaded){
+            var idx = local.findIndex(function(l){ return l.id===uploaded.id; });
+            if(idx>=0){ local[idx].synced=true; local[idx].sync_pending=false; }
+          });
+        }
+      }
+      LS.set('col_receipts', local);
+      allReceipts = local;
+    } else {
+      // Already on server, mark local as synced
+      pending.forEach(function(r){
+        var idx = local.findIndex(function(l){ return l.id===r.id; });
+        if(idx>=0){ local[idx].synced=true; local[idx].sync_pending=false; }
+      });
+      LS.set('col_receipts', local);
+    }
+
+    var stillPending = local.filter(function(r){ return r.sync_pending; }).length;
+    updateSyncIndicator('ok', stillPending);
+    if(stillPending === 0 && syncTimer){
+      clearInterval(syncTimer); syncTimer=null;
+    }
+    renderMyReceipts();
+    if(curUser && curUser.role==='finance') renderSettlements();
+
+  }catch(e){
+    updateSyncIndicator('err', pending.length);
+    console.log('Auto sync failed:', e);
+  }
+  isSyncing = false;
+}
+
+function updateSyncIndicator(status, count){
+  var indicators = document.querySelectorAll('.sync-indicator');
+  indicators.forEach(function(el){
+    if(status==='ok' && count===0){
+      el.innerHTML='🟢 كل البيانات مزامنة';
+      el.style.color='#2e6b4f';
+    } else if(status==='syncing'){
+      el.innerHTML='🔄 جاري مزامنة '+count+' سند...';
+      el.style.color='#1a5fa8';
+    } else if(status==='err'){
+      el.innerHTML='🔴 '+count+' سند غير مزامن (سيُعاد المحاولة)';
+      el.style.color='#c0392b';
+    } else {
+      el.innerHTML='🟡 '+count+' سند بانتظار المزامنة';
+      el.style.color='#8a6010';
+    }
+  });
+}
+
+// Check pending on startup
+async function checkAndSyncPending(){
+  var local = LS.get('col_receipts',[]);
+  var pending = local.filter(function(r){ return r.sync_pending||!r.synced; });
+  if(pending.length > 0){
+    updateSyncIndicator('pending', pending.length);
+    showToast('⚠️ يوجد '+pending.length+' سند غير مزامن — جاري المزامنة التلقائية','warn');
+    scheduleAutoSync();
+    // Try immediately
+    setTimeout(autoSyncPending, 2000);
+  } else {
+    updateSyncIndicator('ok', 0);
+  }
+}
+
+// Listen for online event
+window.addEventListener('online', function(){
+  showToast('✅ عاد الاتصال — جاري مزامنة البيانات','ok');
+  setTimeout(autoSyncPending, 1000);
+});
+window.addEventListener('offline', function(){
+  showToast('⚠️ انقطع الاتصال — البيانات تُحفظ محلياً','warn');
+});
+
+/* ══ SYNC TO SERVER ══ */
+async function syncToServer(){
+  var btns = ['sync-btn','sync-btn-coll'];
+  btns.forEach(function(id){
+    var b=document.getElementById(id);
+    if(b){b.disabled=true;b.innerHTML='⏳ جاري الرفع...';}
+  });
+
+  var lbl = document.getElementById('sync-status-lbl');
+
+  if(!useDB){
+    showToast('لا يوجد اتصال بقاعدة البيانات','err');
+    btns.forEach(function(id){var b=document.getElementById(id);if(b){b.disabled=false;b.innerHTML=id==='sync-btn'?'📤 رفع الآن':'☁️ رفع بياناتي';}});
+    return;
+  }
+
+  var local = LS.get('col_receipts',[]);
+  if(!local.length){
+    showToast('لا توجد بيانات محلية للرفع','warn');
+    btns.forEach(function(id){var b=document.getElementById(id);if(b){b.disabled=false;b.innerHTML=id==='sync-btn'?'📤 رفع الآن':'☁️ رفع بياناتي';}});
+    return;
+  }
+
+  // Get existing IDs from server to avoid duplicates
+  var synced = 0, failed = 0, skipped = 0;
+  try{
+    var existing = await sb.from('col_receipts').select('id');
+    var existingIds = (existing.data||[]).map(function(r){return r.id;});
+
+    // Filter only unsynced records
+    var toSync = local.filter(function(r){ return existingIds.indexOf(r.id)<0; });
+
+    if(toSync.length === 0){
+      showToast('جميع البيانات مرفوعة مسبقاً ✅','ok');
+      if(lbl) lbl.textContent = 'جميع البيانات مزامنة ✅';
+      btns.forEach(function(id){var b=document.getElementById(id);if(b){b.disabled=false;b.innerHTML=id==='sync-btn'?'✅ مزامن':'✅ مزامن';}});
+      return;
+    }
+
+    if(lbl) lbl.textContent = 'جاري رفع '+toSync.length+' سند...';
+
+    // Upload in batches of 20
+    var batchSize = 20;
+    for(var i=0; i<toSync.length; i+=batchSize){
+      var batch = toSync.slice(i, i+batchSize);
+      var res = await sb.from('col_receipts').insert(batch);
+      if(res.error){
+        console.log('Batch error:', res.error);
+        failed += batch.length;
+      } else {
+        synced += batch.length;
+      }
+    }
+
+    // Reload from server
+    await loadReceipts();
+
+    var msg = '✅ تم رفع '+synced+' سند بنجاح';
+    if(failed>0) msg += ' | فشل '+failed;
+    showToast(msg, synced>0?'ok':'err');
+    if(lbl) lbl.textContent = msg;
+
+    btns.forEach(function(id){
+      var b=document.getElementById(id);
+      if(b){
+        b.disabled=false;
+        b.innerHTML=id==='sync-btn'?'✅ '+synced+' سند مرفوع':'✅ تم الرفع';
+      }
+    });
+
+  }catch(e){
+    showToast('خطأ في الاتصال: '+e.message,'err');
+    if(lbl) lbl.textContent = 'خطأ: '+e.message;
+    btns.forEach(function(id){var b=document.getElementById(id);if(b){b.disabled=false;b.innerHTML=id==='sync-btn'?'📤 رفع الآن':'☁️ رفع بياناتي';}});
+  }
+}
+
+/* Auto-sync check on load */
+async function checkSyncStatus(){
+  if(!useDB) return;
+  try{
+    var local = LS.get('col_receipts',[]);
+    if(!local.length) return;
+    var res = await sb.from('col_receipts').select('id');
+    var serverCount = (res.data||[]).length;
+    var localCount = local.length;
+    var unsynced = local.filter(function(r){
+      return !(res.data||[]).find(function(s){return s.id===r.id;});
+    }).length;
+
+    var lbl = document.getElementById('sync-status-lbl');
+    if(unsynced > 0){
+      if(lbl) lbl.textContent = unsynced+' سند غير مرفوع — اضغط لرفعها';
+      showToast('⚠️ يوجد '+unsynced+' سند غير مرفوع لقاعدة البيانات','warn');
+    } else {
+      if(lbl) lbl.textContent = 'جميع البيانات مزامنة ✅ ('+serverCount+' سند)';
+    }
+  }catch(e){ console.log('Sync check failed'); }
+}
+
 /* ══ MODAL / TOAST ══ */
 function openModal(id){document.getElementById(id).classList.add('show');}
 function closeModal(id){document.getElementById(id).classList.remove('show');}
