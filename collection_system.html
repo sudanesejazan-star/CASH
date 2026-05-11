@@ -1,0 +1,1337 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>نظام التحصيل — الجالية السودانية بجازان</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap');
+:root{
+  --gd:#1a3d2b;--gm:#2e6b4f;--gl:#3a9e6f;--gp:#e8f5ee;--gpp:#c8e6d4;
+  --gold:#c9a84c;--gold-l:#f5e9c8;--gold-d:#8a6010;
+  --blue:#1a5fa8;--blue-p:#e8f0fb;
+  --red:#c0392b;--red-p:#fdf0ee;
+  --orange:#d35400;--orange-p:#fef5ec;
+  --ink:#1c2a22;--muted:#6b7c74;--border:#d4e0d9;--surf:#f0f7f3;--white:#fff;
+  --r:12px;--r-sm:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:'Tajawal',Arial,sans-serif;background:var(--surf);color:var(--ink);min-height:100vh;}
+button,input,select,textarea{font-family:'Tajawal',Arial,sans-serif;}
+
+/* TOAST */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);padding:12px 22px;border-radius:30px;font-size:14px;font-weight:700;opacity:0;transition:all .3s;z-index:9999;pointer-events:none;white-space:nowrap;box-shadow:0 4px 20px rgba(0,0,0,.2);}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.ok{background:var(--gm);color:#fff;}
+.toast.err{background:var(--red);color:#fff;}
+.toast.warn{background:var(--gold-d);color:#fff;}
+
+/* PRINT */
+@media print{body>*:not(#print-area){display:none!important;}#print-area{display:block!important;}}
+#print-area{display:none;font-family:'Tajawal',Arial;direction:rtl;}
+
+/* MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:800;display:none;align-items:flex-end;justify-content:center;}
+.modal-bg.show{display:flex;}
+@media(min-width:600px){.modal-bg{align-items:center;padding:16px;}}
+.modal{background:var(--white);border-radius:20px 20px 0 0;padding:20px 18px 32px;width:100%;max-height:92vh;overflow-y:auto;}
+@media(min-width:600px){.modal{border-radius:20px;max-width:540px;}}
+.mhandle{width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 14px;}
+.modal h3{font-size:17px;font-weight:800;margin-bottom:16px;color:var(--gd);}
+.mactions{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;}
+.mbtn{flex:1;min-width:90px;padding:12px;border-radius:var(--r-sm);border:1.5px solid;font-size:14px;font-weight:700;cursor:pointer;}
+.mbtn.save{background:var(--gm);color:#fff;border-color:var(--gm);}
+.mbtn.blue{background:var(--blue);color:#fff;border-color:var(--blue);}
+.mbtn.cancel{background:var(--white);color:var(--muted);border-color:var(--border);}
+.mbtn.danger{background:var(--red);color:#fff;border-color:var(--red);}
+
+/* LOGIN */
+#login-screen{min-height:100vh;display:flex;flex-direction:column;}
+.login-hero{background:linear-gradient(160deg,var(--gd),var(--gm));padding:40px 24px 32px;text-align:center;color:#fff;position:relative;overflow:hidden;}
+.login-hero::before{content:'';position:absolute;top:-60px;right:-60px;width:200px;height:200px;background:rgba(255,255,255,.05);border-radius:50%;}
+.login-hero .flag{font-size:52px;margin-bottom:10px;line-height:1;}
+.login-hero h1{font-size:20px;font-weight:900;margin-bottom:4px;}
+.login-hero p{font-size:12px;opacity:.85;}
+.login-box{max-width:420px;margin:0 auto;padding:24px 20px 32px;width:100%;}
+.fl{font-size:13px;color:var(--muted);font-weight:700;margin-bottom:5px;display:block;}
+.req{color:var(--red);}
+.linput,.lsel{width:100%;border:1.5px solid var(--border);border-radius:var(--r-sm);padding:13px 14px;font-size:16px;color:var(--ink);outline:none;background:var(--surf);appearance:none;transition:border-color .15s;margin-bottom:12px;}
+.linput:focus,.lsel:focus{border-color:var(--gm);background:var(--white);}
+.pw-wrap{position:relative;margin-bottom:12px;}
+.pw-wrap .linput{margin-bottom:0;}
+.pw-eye{position:absolute;left:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;color:var(--muted);}
+.lbtn{width:100%;padding:14px;background:linear-gradient(135deg,var(--gm),var(--gd));color:#fff;border:none;border-radius:var(--r-sm);font-size:17px;font-weight:800;cursor:pointer;box-shadow:0 4px 15px rgba(46,107,79,.35);}
+.lerr{background:var(--red-p);color:var(--red);border:1px solid #e8c5c1;border-radius:var(--r-sm);padding:9px 14px;font-size:13px;text-align:center;margin-bottom:12px;display:none;}
+.lerr.show{display:block;}
+
+/* APP */
+#app-screen{display:none;min-height:100vh;flex-direction:column;}
+#app-screen.show{display:flex;}
+.app-hdr{background:linear-gradient(135deg,var(--gd),var(--gm));flex-shrink:0;}
+.app-hdr-inner{display:flex;align-items:center;gap:10px;padding:12px 14px;}
+.app-logo{width:40px;height:40px;background:var(--gold);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.app-title h1{color:#fff;font-size:14px;font-weight:800;}
+.app-title p{color:var(--gold);font-size:10px;margin-top:1px;}
+.u-info{margin-right:auto;text-align:left;}
+.u-name{color:#fff;font-size:12px;font-weight:700;}
+.u-role{color:var(--gold);font-size:10px;}
+.logout-btn{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.3);color:#fff;padding:6px 12px;border-radius:var(--r-sm);font-size:12px;cursor:pointer;}
+
+/* TABS */
+.tab-bar{background:rgba(0,0,0,.15);display:flex;overflow-x:auto;}
+.tab-btn{padding:10px 18px;color:rgba(255,255,255,.65);font-size:13px;font-weight:600;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;flex-shrink:0;font-family:'Tajawal',Arial;}
+.tab-btn.active{color:var(--gold);border-bottom-color:var(--gold);}
+
+/* SCREENS */
+.screens{flex:1;overflow-y:auto;}
+.screen{display:none;padding:14px;max-width:640px;margin:0 auto;}
+.screen.active{display:block;}
+
+/* CARDS */
+.card{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.05);}
+.ctitle{font-size:13px;color:var(--muted);font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:6px;}
+.ctitle::before{content:'';display:inline-block;width:3px;height:14px;background:var(--gm);border-radius:2px;}
+
+/* FORM */
+.frow{margin-bottom:12px;}
+.f2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+.finput,.fsel{width:100%;border:1.5px solid var(--border);border-radius:var(--r-sm);padding:11px 13px;font-size:15px;color:var(--ink);background:var(--surf);outline:none;appearance:none;transition:border-color .15s;}
+.finput:focus,.fsel:focus{border-color:var(--gm);background:var(--white);}
+.finput.ltr{direction:ltr;text-align:left;}
+
+/* AMOUNT */
+.amt-display{background:linear-gradient(135deg,var(--gd),var(--gm));border-radius:var(--r);padding:16px;text-align:center;margin-bottom:12px;}
+.amt-num{font-size:46px;font-weight:900;color:var(--gold);line-height:1;transition:all .15s;}
+.amt-unit{font-size:13px;color:rgba(255,255,255,.7);margin-top:3px;}
+.amt-words{font-size:11px;color:rgba(255,255,255,.85);margin-top:5px;min-height:16px;}
+
+.quick-btns{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:8px;}
+.qb{padding:11px 6px;border:1.5px solid var(--gpp);border-radius:var(--r-sm);background:var(--gp);font-size:14px;font-weight:700;color:var(--gd);cursor:pointer;transition:all .12s;font-family:'Tajawal',Arial;}
+.qb:hover{background:var(--gm);color:#fff;border-color:var(--gm);}
+.qb:active{transform:scale(.96);}
+.qb.blue{background:var(--blue-p);border-color:#c5d5e8;color:var(--blue);}
+.qb.gold{background:var(--gold-l);border-color:var(--gold);color:var(--gold-d);}
+.qb.red{background:var(--red-p);border-color:#e8c5c1;color:var(--red);}
+.ctrl-btns{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-bottom:14px;}
+
+/* SAVE BTN */
+.save-btn{width:100%;padding:14px;background:linear-gradient(135deg,var(--gm),var(--gd));color:#fff;border:none;border-radius:var(--r);font-size:16px;font-weight:800;cursor:pointer;box-shadow:0 4px 16px rgba(46,107,79,.35);transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px;}
+.save-btn:hover{transform:translateY(-1px);}
+.save-btn:active{transform:scale(.98);}
+.save-btn:disabled{opacity:.6;cursor:not-allowed;transform:none;}
+.print-btn{background:linear-gradient(135deg,var(--blue),#0d3d6e);}
+
+/* STATS */
+.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;}
+.stat-card{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:12px;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,.04);}
+.stat-val{font-size:22px;font-weight:900;color:var(--gd);line-height:1;}
+.stat-val.gold{color:var(--gold-d);}
+.stat-val.red{color:var(--red);}
+.stat-lbl{font-size:10px;color:var(--muted);margin-top:3px;font-weight:500;}
+
+/* TABLE */
+.twrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.tbl{width:100%;border-collapse:collapse;font-size:12px;min-width:480px;}
+.tbl th{padding:9px 10px;background:var(--surf);color:var(--muted);font-weight:700;text-align:right;border-bottom:1px solid var(--border);font-size:11px;}
+.tbl td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.tbl tr:last-child td{border-bottom:none;}
+.tbl tr:hover td{background:#f0f7f3;}
+.badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;}
+.b-green{background:var(--gp);color:var(--gd);}
+.b-gold{background:var(--gold-l);color:var(--gold-d);}
+.b-red{background:var(--red-p);color:var(--red);}
+.b-blue{background:var(--blue-p);color:var(--blue);}
+.ibtn{padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:transparent;font-size:11px;cursor:pointer;font-family:'Tajawal',Arial;}
+.ibtn.p{color:var(--blue);border-color:#c5d5e8;}
+.ibtn.r{color:var(--red);border-color:#e8c5c1;}
+.empty{text-align:center;padding:28px;color:var(--muted);font-size:13px;}
+
+/* SETTLEMENT */
+.settler-card{background:linear-gradient(135deg,var(--gd),var(--gm));border-radius:var(--r);padding:16px;margin-bottom:10px;color:#fff;}
+.settler-name{font-size:15px;font-weight:800;margin-bottom:3px;}
+.settler-meta{font-size:11px;opacity:.8;}
+.settler-amt{font-size:22px;font-weight:900;color:var(--gold);}
+.settler-actions{display:flex;gap:8px;margin-top:12px;}
+.settle-btn{flex:1;padding:10px;border:none;border-radius:var(--r-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:'Tajawal',Arial;}
+.settle-btn.primary{background:var(--gold);color:var(--gd);}
+.settle-btn.secondary{background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);}
+
+/* SEARCH */
+.search-bar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
+.sbox{border:1.5px solid var(--border);border-radius:var(--r-sm);padding:10px 13px;font-size:14px;outline:none;background:var(--white);color:var(--ink);font-family:'Tajawal',Arial;flex:1;min-width:140px;}
+.sbox:focus{border-color:var(--gm);}
+.sfsel{border:1.5px solid var(--border);border-radius:var(--r-sm);padding:9px 10px;font-size:13px;outline:none;background:var(--white);color:var(--ink);font-family:'Tajawal',Arial;appearance:none;}
+.sfsel:focus{border-color:var(--gm);}
+
+
+/* BTYPE TOGGLE */
+.btype{width:100%;padding:10px 8px;border:1.5px solid #c5d5e8;border-radius:var(--r-sm);background:var(--white);font-size:13px;font-weight:600;cursor:pointer;color:var(--muted);font-family:'Tajawal',Arial;transition:all .15s;}
+.btype.active{border-color:var(--blue);background:var(--blue);color:#fff;}
+
+/* COUNT BUTTONS */
+.cnt-btn{width:34px;height:34px;border-radius:50%;border:1.5px solid var(--border);background:var(--white);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:'Tajawal',Arial;flex-shrink:0;transition:all .12s;}
+.cnt-btn:hover{border-color:var(--gm);background:var(--gp);}
+.cnt-btn:active{transform:scale(.93);}
+
+/* SPINNER */
+.spin{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:sp .8s linear infinite;vertical-align:middle;margin-left:6px;}
+@keyframes sp{to{transform:rotate(360deg);}}
+
+/* PRINT RECEIPT */
+.pr-receipt{width:80mm;font-family:'Tajawal',Arial;direction:rtl;color:#000;padding:4mm;font-size:12px;line-height:1.6;}
+.pr-hdr{text-align:center;margin-bottom:5px;}
+.pr-org{font-size:11px;font-weight:800;color:#1a3d2b;margin:2px 0;}
+.pr-sub{font-size:9px;color:#666;}
+.pr-div{border:none;border-top:1px dashed #333;margin:4px 0;}
+.pr-div2{border:none;border-top:2px solid #1a3d2b;margin:4px 0;}
+.pr-title{background:#1a3d2b;color:#fff;text-align:center;padding:4px;font-size:12px;font-weight:800;border-radius:3px;margin:4px 0;}
+.pr-seq{text-align:center;font-size:18px;font-weight:900;color:#1a3d2b;letter-spacing:2px;}
+.pr-row{display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px dotted #ddd;font-size:11px;gap:6px;}
+.pr-lbl{color:#666;font-size:10px;flex-shrink:0;}
+.pr-val{font-weight:700;text-align:left;}
+.pr-amt-box{background:#e8f5ee;border:2px solid #2e6b4f;border-radius:5px;text-align:center;padding:5px;margin:5px 0;}
+.pr-amt-n{font-size:22px;font-weight:900;color:#1a3d2b;line-height:1;}
+.pr-amt-u{font-size:10px;color:#2e6b4f;}
+.pr-amt-w{font-size:10px;color:#555;margin-top:2px;}
+.pr-sigs{display:flex;justify-content:space-between;margin-top:10px;}
+.pr-sig{text-align:center;width:45%;}
+.pr-sig-line{border-top:1px solid #333;margin-top:16px;padding-top:3px;font-size:9px;color:#555;}
+.pr-footer{text-align:center;font-size:9px;color:#777;margin-top:6px;border-top:1px dashed #ccc;padding-top:4px;}
+.pr-copy{text-align:center;font-size:9px;color:#aaa;margin-top:2px;}
+
+/* PRINT SETTLEMENT */
+.pr-settle{width:190mm;font-family:'Tajawal',Arial;direction:rtl;color:#000;padding:8mm;font-size:12px;}
+.ps-hdr{border-bottom:3px double #1a3d2b;padding-bottom:8px;margin-bottom:8px;display:flex;align-items:center;gap:14px;}
+.ps-org h1{font-size:17px;font-weight:800;color:#1a3d2b;}
+.ps-org h2{font-size:13px;color:#2e6b4f;}
+.ps-title{background:#1a3d2b;color:#fff;text-align:center;padding:8px;border-radius:4px;margin:8px 0;}
+.ps-title h3{font-size:15px;font-weight:800;}
+.ps-tbl{width:100%;border-collapse:collapse;font-size:11px;margin:8px 0;}
+.ps-tbl th{background:#1a3d2b;color:#fff;padding:6px 8px;text-align:right;}
+.ps-tbl td{padding:5px 8px;border:1px solid #ddd;}
+.ps-tbl tr:nth-child(even) td{background:#f5f5f5;}
+.ps-total{background:#e8f5ee;font-weight:800;}
+.ps-sigs{display:flex;justify-content:space-between;margin-top:20px;}
+.ps-sig{text-align:center;}
+.ps-sig-line{border-top:1px solid #333;margin-top:28px;padding-top:4px;font-size:10px;width:160px;}
+</style>
+</head>
+<body>
+<div class="toast" id="toast"></div>
+<div id="print-area"></div>
+
+<!-- ══ SETTLEMENT MODAL ══ -->
+<div class="modal-bg" id="m-settle">
+  <div class="modal">
+    <div class="mhandle"></div>
+    <h3 id="settle-title">تسوية التحصيل</h3>
+    <div id="settle-body"></div>
+    <div class="mactions">
+      <button class="mbtn save" onclick="confirmSettle()">✓ اعتماد التسوية وطباعة</button>
+      <button class="mbtn cancel" onclick="closeModal('m-settle')">إغلاق</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ LOGIN ══ -->
+<div id="login-screen">
+  <div class="login-hero">
+    <div class="flag">🇸🇩</div>
+    <h1>نظام التحصيل المالي</h1>
+    <p>الجالية السودانية بجازان — خاص بالموظفين</p>
+  </div>
+  <div class="login-box">
+    <br/>
+    <label class="fl">المستخدم</label>
+    <select class="lsel" id="l-user" onchange="onUserSel(this.value)">
+      <option value="">— اختر المستخدم —</option>
+    </select>
+    <label class="fl">كلمة المرور</label>
+    <div class="pw-wrap">
+      <input class="linput" id="l-pw" type="password" placeholder="••••••" onkeydown="if(event.key==='Enter')doLogin()"/>
+      <button class="pw-eye" onclick="togglePw()" type="button">👁</button>
+    </div>
+    <div class="lerr" id="l-err">كلمة المرور غير صحيحة</div>
+    <button class="lbtn" onclick="doLogin()">دخول</button>
+    <div style="text-align:center;margin-top:14px;font-size:11px;color:var(--muted);padding:10px;background:var(--surf);border-radius:var(--r-sm);">
+      🔒 نظام داخلي خاص · الجالية السودانية بجازان
+    </div>
+  </div>
+</div>
+
+<!-- ══ APP ══ -->
+<div id="app-screen">
+  <div class="app-hdr">
+    <div class="app-hdr-inner">
+      <div class="app-logo">🇸🇩</div>
+      <div class="app-title">
+        <h1>نظام التحصيل المالي</h1>
+        <p>الجالية السودانية بجازان</p>
+      </div>
+      <div class="u-info">
+        <div class="u-name" id="u-name">—</div>
+        <div class="u-role" id="u-role">—</div>
+      </div>
+      <button class="logout-btn" onclick="doLogout()">خروج</button>
+    </div>
+    <div class="tab-bar" id="tab-bar"></div>
+    <div style="background:rgba(0,0,0,.2);padding:4px 14px;font-size:11px;font-weight:600;" class="sync-indicator">🟡 جاري الاتصال...</div>
+  </div>
+  <div class="screens">
+
+    <!-- ══ COLLECT SCREEN ══ -->
+    <div class="screen" id="sc-collect">
+      <!-- Stats -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-val" id="my-count">0</div>
+          <div class="stat-lbl">سنداتي اليوم</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val gold" id="my-total">0</div>
+          <div class="stat-lbl">ر.س تحصيلي</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val red" id="my-unsettled">0</div>
+          <div class="stat-lbl">غير مسوّاة</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="ctitle">سند قبض جديد
+          <span style="margin-right:auto;background:var(--gp);color:var(--gd);padding:3px 10px;border-radius:20px;font-size:12px;font-weight:800;" id="next-seq">R0001</span>
+        </div>
+
+        <div class="frow">
+          <label class="fl">الاسم الكامل <span class="req">*</span></label>
+          <input class="finput" id="fn" type="text" placeholder="محمد إبراهيم خليل"/>
+        </div>
+        <div class="f2">
+          <div>
+            <label class="fl">رقم الهاتف</label>
+            <input class="finput ltr" id="fphone" type="tel" inputmode="numeric" placeholder="05xxxxxxxx" maxlength="10" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,10)"/>
+          </div>
+          <div>
+            <label class="fl">الرقم الوطني</label>
+            <input class="finput ltr" id="fnid" type="text" inputmode="numeric" placeholder="11 رقم" maxlength="11" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,11)"/>
+          </div>
+        </div>
+        <div class="frow">
+          <label class="fl">رقم الجواز</label>
+          <input class="finput ltr" id="fp" type="text" placeholder="A12345678"/>
+        </div>
+        <div class="frow">
+          <label class="fl">الخدمة <span class="req">*</span></label>
+          <select class="fsel" id="fdesc" onchange="autoPrice()">
+            <option value="">— اختر الخدمة —</option>
+            <optgroup label="خدمات الجوازات">
+              <option value="تجديد واستلام جواز سفر"  data-price="0">تجديد واستلام جواز سفر</option>
+              <option value="إصدار واستلام جواز سفر"   data-price="0">إصدار واستلام جواز سفر</option>
+              <option value="إصدار رقم وطني وجواز سفر" data-price="0">إصدار رقم وطني وجواز سفر</option>
+              <option value="إصدار رقم وطني"           data-price="0">إصدار رقم وطني</option>
+            </optgroup>
+            <optgroup label="العضوية والتوثيق">
+              <option value="تسجيل عضوية جديدة"        data-price="0">تسجيل عضوية جديدة</option>
+              <option value="تصديق وثيقة"              data-price="0">تصديق وثيقة</option>
+              <option value="إثبات الجنسية السودانية"  data-price="0">إثبات الجنسية السودانية</option>
+              <option value="خطاب تعريفي"              data-price="0">خطاب تعريفي</option>
+            </optgroup>
+            <optgroup label="أخرى">
+              <option value="مساعدة طارئة"             data-price="0">مساعدة طارئة</option>
+              <option value="خدمة أخرى"                data-price="0">خدمة أخرى</option>
+            </optgroup>
+          </select>
+        </div>
+        <div class="frow">
+          <label class="fl">ملاحظات</label>
+          <input class="finput" id="fnotes" type="text" placeholder="اختياري..."/>
+        </div>
+
+        <!-- ══ نوع المستفيد وعدده ══ -->
+        <div style="background:var(--blue-p);border:1.5px solid #c5d5e8;border-radius:var(--r);padding:14px;margin-bottom:12px;">
+          <div style="font-size:13px;font-weight:800;color:var(--blue);margin-bottom:12px;">👥 المستفيدون من الخدمة</div>
+
+          <div class="frow" style="margin-bottom:10px;">
+            <label class="fl">نوع المستفيد</label>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+              <button type="button" class="btype active" id="bt-single" onclick="setBtype('single')">
+                👤 شخص كبير
+              </button>
+              <button type="button" class="btype" id="bt-family" onclick="setBtype('family')">
+                👨‍👩‍👧‍👦 عائلة
+              </button>
+            </div>
+            <input type="hidden" id="f-btype" value="single"/>
+          </div>
+
+          <!-- Single: عدد الكبار فقط -->
+          <div id="single-section">
+            <div class="f2" style="margin-bottom:0;">
+              <div>
+                <label class="fl">عدد الكبار</label>
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <button type="button" class="cnt-btn" onclick="chgCnt('adults',-1)">−</button>
+                  <div style="flex:1;text-align:center;font-size:22px;font-weight:900;color:var(--blue);" id="adults-cnt">1</div>
+                  <button type="button" class="cnt-btn" onclick="chgCnt('adults',1)">+</button>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:center;padding-top:18px;">
+                <div style="font-size:11px;color:var(--muted);text-align:center;line-height:1.6;">
+                  إجمالي<br/>
+                  <span style="font-size:18px;font-weight:800;color:var(--blue);" id="single-total-lbl">—</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Family: كبار + أطفال -->
+          <div id="family-section" style="display:none;">
+            <div class="f2" style="margin-bottom:10px;">
+              <div>
+                <label class="fl">عدد الكبار</label>
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <button type="button" class="cnt-btn" onclick="chgCnt('fadults',-1)">−</button>
+                  <div style="flex:1;text-align:center;font-size:22px;font-weight:900;color:var(--gd);" id="fadults-cnt">1</div>
+                  <button type="button" class="cnt-btn" onclick="chgCnt('fadults',1)">+</button>
+                </div>
+              </div>
+              <div>
+                <label class="fl">عدد الأطفال</label>
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <button type="button" class="cnt-btn" onclick="chgCnt('children',-1)">−</button>
+                  <div style="flex:1;text-align:center;font-size:22px;font-weight:900;color:var(--gd);" id="children-cnt">0</div>
+                  <button type="button" class="cnt-btn" onclick="chgCnt('children',1)">+</button>
+                </div>
+              </div>
+            </div>
+            <div style="background:var(--gp);border-radius:var(--r-sm);padding:10px;text-align:center;">
+              <span style="font-size:12px;color:var(--muted);">إجمالي الأفراد: </span>
+              <span style="font-size:18px;font-weight:900;color:var(--gd);" id="family-total-lbl">—</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- AMOUNT -->
+        <div class="amt-display">
+          <div class="amt-num" id="amtv">0</div>
+          <div class="amt-unit">ريال سعودي</div>
+          <div class="amt-words" id="amt-words">—</div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:5px;">اختر المبلغ (اضغط لتحديد مباشر)</div>
+        <div class="quick-btns">
+          <button class="qb" onclick="setAmt(50)">٥٠</button>
+          <button class="qb" onclick="setAmt(100)">١٠٠</button>
+          <button class="qb" onclick="setAmt(150)">١٥٠</button>
+          <button class="qb" onclick="setAmt(250)">٢٥٠</button>
+          <button class="qb" onclick="setAmt(300)">٣٠٠</button>
+          <button class="qb" onclick="setAmt(350)">٣٥٠</button>
+          <button class="qb gold" onclick="customAmt()">✏️ أخرى</button>
+          <button class="qb red"  onclick="clearAmt()">✕ مسح</button>
+        </div>
+        <div class="ctrl-btns">
+          <button class="qb blue" onclick="editAmt()">✏️ تعديل المبلغ</button>
+          <button class="qb red"  onclick="clearForm()">✕ مسح الكل</button>
+        </div>
+        <button class="save-btn" id="save-btn" onclick="saveReceipt()">💾 حفظ وطباعة السند</button>
+        <button class="save-btn print-btn" onclick="printLast()">🖨️ طباعة آخر سند</button>
+      <button class="save-btn" onclick="syncToServer()" id="sync-btn-coll"
+        style="margin-top:6px;background:linear-gradient(135deg,#1a5fa8,#0d3d6e);font-size:14px;">
+        ☁️ رفع بياناتي لقاعدة البيانات
+      </button>
+      </div>
+
+      <!-- Recent receipts -->
+      <div class="card" style="padding:0;overflow:hidden;">
+        <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">
+          <div class="ctitle" style="margin:0;">سنداتي اليوم</div>
+          <div style="font-size:11px;font-weight:600;" class="sync-indicator">🟡 جاري...</div>
+          <button class="ibtn p" onclick="exportMyExcel()">📥 Excel</button>
+        </div>
+        <div id="my-receipts-list">
+          <div class="empty">لا توجد سندات اليوم</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ FINANCE SCREEN ══ -->
+    <div class="screen" id="sc-finance">
+      <!-- Settlement cards per collector -->
+      <div id="settlement-cards"></div>
+
+      <!-- SYNC BANNER -->
+      <div id="sync-banner" style="background:linear-gradient(135deg,#1a5fa8,#0d3d6e);border-radius:var(--r);padding:14px 16px;margin-bottom:12px;display:flex;align-items:center;gap:12px;">
+        <div style="font-size:24px;flex-shrink:0;">☁️</div>
+        <div style="flex:1;color:#fff;">
+          <div style="font-size:13px;font-weight:800;">مزامنة البيانات مع قاعدة البيانات</div>
+          <div style="font-size:11px;opacity:.8;margin-top:2px;" id="sync-status-lbl">اضغط لرفع البيانات المحلية</div>
+        </div>
+        <button onclick="syncToServer()" id="sync-btn"
+          style="background:var(--gold);color:#1a1a1a;border:none;border-radius:var(--r-sm);padding:9px 16px;font-size:13px;font-weight:800;cursor:pointer;flex-shrink:0;font-family:'Tajawal',Arial;">
+          📤 رفع الآن
+        </button>
+      </div>
+
+      <!-- All receipts search -->
+      <div class="card" style="padding:0;overflow:hidden;">
+        <div style="padding:12px 16px;border-bottom:1px solid var(--border);">
+          <div class="ctitle" style="margin-bottom:10px;">بحث في السندات</div>
+          <div class="search-bar">
+            <input class="sbox" id="srch-q" type="search" placeholder="🔍 اسم / خدمة / رقم السند..." oninput="searchReceipts()"/>
+            <select class="sfsel" id="srch-status" onchange="searchReceipts()">
+              <option value="">كل الحالات</option>
+              <option value="pending">غير مسوّاة</option>
+              <option value="settled">مسوّاة</option>
+            </select>
+            <select class="sfsel" id="srch-coll" onchange="searchReceipts()">
+              <option value="">كل المحصّلين</option>
+            </select>
+          </div>
+          <div class="search-bar">
+            <input class="sbox" type="date" id="srch-from" onchange="searchReceipts()" style="flex:1;"/>
+            <input class="sbox" type="date" id="srch-to"   onchange="searchReceipts()" style="flex:1;"/>
+            <button class="ibtn p" onclick="exportAll()">📥 Excel</button>
+          </div>
+        </div>
+        <div class="twrap">
+          <table class="tbl">
+            <thead><tr>
+              <th>السند</th><th>الاسم</th><th>الخدمة</th><th>المبلغ</th>
+              <th>المحصّل</th><th>الحالة</th><th>التاريخ</th><th></th>
+            </tr></thead>
+            <tbody id="finance-tbody"></tbody>
+          </table>
+        </div>
+        <div style="padding:8px 12px;font-size:12px;color:var(--muted);border-top:1px solid var(--border);" id="finance-foot"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+/* ══ SUPABASE ══ */
+var SB_URL = 'https://dbkdgntbosvkallosydj.supabase.co';
+var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRia2RnbnRib3N2a2FsbG9zeWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0OTk4ODUsImV4cCI6MjA5NDA3NTg4NX0.TkVM6-_UB319w1AY2DQxwcCeyOuHNwENaLmBSt4DSz0';
+var sb = null, useDB = false;
+
+/* ══ USERS ══ */
+var USERS = [
+  {id:'c1', name:'المحصّل الأول',    role:'collector', pw:'col1-2026'},
+  {id:'c2', name:'المحصّل الثاني',   role:'collector', pw:'col2-2026'},
+  {id:'c3', name:'المحصّل الثالث',   role:'collector', pw:'col3-2026'},
+  {id:'c4', name:'المحصّل الرابع',   role:'collector', pw:'col4-2026'},
+  {id:'f1', name:'أمين المالية',     role:'finance',   pw:'finance-2026'},
+];
+
+/* ══ STATE ══ */
+var curUser = null, colAmt = 0;
+var allReceipts = [], lastRec = null;
+var settleTarget = null;
+
+/* ══ LS ══ */
+var LS = {
+  get:function(k,d){try{var v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}},
+  set:function(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+};
+
+/* ══ INIT ══ */
+window.addEventListener('load', function(){
+  try{
+    sb = window.supabase.createClient(SB_URL, SB_KEY, {auth:{persistSession:false}});
+    useDB = true;
+  }catch(e){ useDB=false; }
+  buildLoginUI();
+  var saved = LS.get('col_session', null);
+  if(saved && saved.id && (Date.now()-saved.ts) < 12*3600000){
+    var u = USERS.find(function(x){return x.id===saved.id;});
+    if(u){ curUser=u; showApp(); }
+  }
+});
+
+/* ══ LOGIN ══ */
+function buildLoginUI(){
+  var sel = document.getElementById('l-user');
+  while(sel.options.length>1) sel.remove(1);
+  USERS.forEach(function(u){
+    var o=document.createElement('option');
+    o.value=u.id;
+    o.textContent=u.name+(u.role==='finance'?' — أمين المالية':' — محصّل');
+    sel.appendChild(o);
+  });
+}
+var loginUser = null;
+function onUserSel(id){ loginUser=USERS.find(function(u){return u.id===id;})||null; document.getElementById('l-err').classList.remove('show'); }
+function togglePw(){ var i=document.getElementById('l-pw'); i.type=i.type==='password'?'text':'password'; }
+
+function doLogin(){
+  if(!loginUser){showToast('اختر المستخدم','warn');return;}
+  var pw=document.getElementById('l-pw').value;
+  if(pw!==loginUser.pw){document.getElementById('l-err').classList.add('show');return;}
+  curUser=loginUser;
+  LS.set('col_session',{id:curUser.id,ts:Date.now()});
+  document.getElementById('l-pw').value='';
+  showApp();
+}
+function doLogout(){
+  if(!confirm('هل تريد الخروج؟'))return;
+  curUser=null; LS.set('col_session',null);
+  document.getElementById('app-screen').classList.remove('show');
+  document.getElementById('app-screen').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+  buildLoginUI();
+}
+
+async function showApp(){
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app-screen').style.display='flex';
+  document.getElementById('app-screen').classList.add('show');
+  document.getElementById('u-name').textContent=curUser.name;
+  document.getElementById('u-role').textContent=curUser.role==='finance'?'أمين المالية':'محصّل';
+  buildTabs();
+  await loadReceipts();
+}
+
+/* ══ TABS ══ */
+function buildTabs(){
+  var tabs = curUser.role==='finance'
+    ? [{id:'finance',lbl:'التسوية والسجلات'}]
+    : [{id:'collect',lbl:'تحصيل جديد'},{id:'collect',lbl:'سنداتي'}];
+  var isFinance = curUser.role==='finance';
+  document.getElementById('tab-bar').innerHTML =
+    (!isFinance ? '<button class="tab-btn active" id="tb-collect" onclick="switchTab(\'collect\')">📋 تحصيل جديد</button>' : '')
+    + (isFinance ? '<button class="tab-btn active" id="tb-finance" onclick="switchTab(\'finance\')">💰 التسوية والسجلات</button>' : '');
+  switchTab(isFinance?'finance':'collect');
+}
+function switchTab(t){
+  document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});
+  document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active');});
+  var sc=document.getElementById('sc-'+t);
+  if(sc) sc.classList.add('active');
+  var tb=document.getElementById('tb-'+t);
+  if(tb) tb.classList.add('active');
+  if(t==='finance'){ renderSettlements(); searchReceipts(); }
+  if(t==='collect'){ updateStats(); renderMyReceipts(); updateSeq(); }
+}
+
+/* ══ LOAD RECEIPTS ══ */
+async function loadReceipts(){
+  // Always load local first for instant display
+  var localData = LS.get('col_receipts',[]);
+  allReceipts = localData;
+  updateStats(); renderMyReceipts(); updateSeq(); buildCollectorFilter();
+
+  // Try server in background
+  if(useDB){
+    try{
+      var res=await sb.from('col_receipts').select('*').order('created_at',{ascending:false});
+      if(!res.error && res.data && res.data.length > 0){
+        // Merge server + local (local might have items not yet on server)
+        var serverIds = res.data.map(function(r){return r.id;});
+        var localOnly = localData.filter(function(r){return serverIds.indexOf(r.id)<0;});
+        allReceipts = res.data.concat(localOnly);
+        allReceipts.sort(function(a,b){return new Date(b.created_at)-new Date(a.created_at);});
+        // Update local cache
+        LS.set('col_receipts', allReceipts);
+        document.getElementById('next-seq') && (document.getElementById('next-seq').textContent='R'+String(allReceipts.length+1).padStart(4,'0'));
+      }
+    }catch(e){ console.log('Server load failed, using local data'); }
+  }
+  updateStats();
+  renderMyReceipts();
+  updateSeq();
+  buildCollectorFilter();
+  if(curUser.role==='finance'){ renderSettlements(); searchReceipts(); }
+  setTimeout(checkAndSyncPending, 2000);
+}
+
+/* ══ AMOUNT ══ */
+function updAmt(){
+  document.getElementById('amtv').textContent=colAmt.toLocaleString('ar-SA');
+  document.getElementById('amt-words').textContent=colAmt>0?amtWords(colAmt)+' ريال سعودي':'—';
+}
+function addAmt(n){colAmt+=n;updAmt();}
+function clearAmt(){colAmt=0;updAmt();}
+function customAmt(){var v=prompt('أدخل المبلغ:');if(v!==null&&!isNaN(v)&&+v>=0){colAmt=+v;updAmt();}}
+function editAmt(){var v=prompt('تعديل المبلغ ('+colAmt+'):');if(v!==null&&!isNaN(v)&&+v>=0){colAmt=+v;updAmt();}}
+function autoPrice(){
+  var sel=document.getElementById('fdesc');
+  var opt=sel.options[sel.selectedIndex];
+  var p=opt?parseInt(opt.dataset.price||0):0;
+  if(p>0){colAmt=p;updAmt();}
+}
+function clearForm(){
+  ['fn','fphone','fnid','fp','fnotes'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('fdesc').value='';
+  clearAmt();
+}
+
+/* ══ SEQ ══ */
+function updateSeq(){
+  var n=allReceipts.length+1;
+  document.getElementById('next-seq').textContent='R'+String(n).padStart(4,'0');
+}
+
+/* ══ SAVE RECEIPT ══ */
+async function saveReceipt(){
+  var name=document.getElementById('fn').value.trim();
+  var phone=document.getElementById('fphone').value.trim();
+  var nid=document.getElementById('fnid').value.trim();
+  var pass=document.getElementById('fp').value.trim();
+  var desc=document.getElementById('fdesc').value;
+  var notes=document.getElementById('fnotes').value.trim();
+  if(!name){showToast('أدخل الاسم','err');return;}
+  if(!desc){showToast('اختر الخدمة','err');return;}
+  if(colAmt<=0){showToast('أدخل المبلغ','err');return;}
+
+  var btn=document.getElementById('save-btn');
+  btn.disabled=true; btn.innerHTML='⏳ جاري الحفظ...<span class="spin"></span>';
+
+  var now=new Date();
+  var rec={
+    id:'R'+String(allReceipts.length+1).padStart(4,'0')+'_'+Date.now().toString().slice(-4),
+    seq:'R'+String(allReceipts.length+1).padStart(4,'0'),
+    date:now.toISOString().slice(0,10),
+    time:now.toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'}),
+    name:name, phone:phone, national_id:nid, passport:pass,
+    description:desc, beneficiary_type:document.getElementById('f-btype').value, beneficiary_info:getBeneficiaryText(), notes:notes, amount:colAmt,
+    collector_id:curUser.id, collector_name:curUser.name,
+    status:'pending', // pending = not settled
+    created_at:now.toISOString()
+  };
+
+  // ── حفظ محلي فوري ──
+  var local=LS.get('col_receipts',[]);
+  local.unshift(rec);
+  LS.set('col_receipts',local);
+  allReceipts.unshift(rec);
+
+  // ── محاولة الحفظ السحابي ──
+  var savedToCloud = false;
+  if(useDB){
+    try{
+      var res = await sb.from('col_receipts').insert(rec);
+      if(!res.error){
+        savedToCloud = true;
+        // Mark as synced in local
+        local[0].synced = true;
+        LS.set('col_receipts', local);
+      } else {
+        console.log('Cloud save failed:', res.error.message);
+        // Mark as pending sync
+        local[0].synced = false;
+        local[0].sync_pending = true;
+        LS.set('col_receipts', local);
+      }
+    }catch(e){
+      local[0].synced = false;
+      local[0].sync_pending = true;
+      LS.set('col_receipts', local);
+    }
+  } else {
+    local[0].synced = false;
+    local[0].sync_pending = true;
+    LS.set('col_receipts', local);
+  }
+
+  lastRec = rec;
+  clearForm();
+  updateStats();
+  renderMyReceipts();
+  updateSeq();
+  printReceipt(rec);
+  btn.disabled=false;
+  btn.innerHTML='💾 حفظ وطباعة السند';
+
+  if(savedToCloud){
+    showToast('✅ '+rec.seq+' — محفوظ محلياً وسحابياً','ok');
+  } else {
+    showToast('⚠️ '+rec.seq+' — محفوظ محلياً فقط (سيُرفع تلقائياً عند الاتصال)','warn');
+    // Schedule auto-retry
+    scheduleAutoSync();
+  }
+}
+
+/* ══ STATS ══ */
+function updateStats(){
+  var today=new Date().toISOString().slice(0,10);
+  var mine=allReceipts.filter(function(r){return r.collector_id===curUser.id && r.date===today;});
+  var total=mine.reduce(function(s,r){return s+(r.amount||0);},0);
+  var unsettled=allReceipts.filter(function(r){return r.collector_id===curUser.id && r.status==='pending';}).length;
+  document.getElementById('my-count').textContent=mine.length;
+  document.getElementById('my-total').textContent=total.toLocaleString('ar-SA');
+  document.getElementById('my-unsettled').textContent=unsettled;
+}
+
+function renderMyReceipts(){
+  var today=new Date().toISOString().slice(0,10);
+  var mine=allReceipts.filter(function(r){return r.collector_id===curUser.id && r.date===today;});
+  var el=document.getElementById('my-receipts-list');
+  if(!mine.length){el.innerHTML='<div class="empty">لا توجد سندات اليوم</div>';return;}
+  el.innerHTML=mine.map(function(r){
+    return '<div style="padding:11px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;">'
+      +'<div style="background:var(--gp);border-radius:8px;padding:4px 8px;font-size:10px;font-weight:800;color:var(--gm);flex-shrink:0;">'+r.seq+'</div>'
+      +'<div style="flex:1;min-width:0;">'
+      +'<div style="font-size:13px;font-weight:700;">'+r.name+'</div>'
+      +'<div style="font-size:11px;color:var(--muted);">'+r.description+' · '+r.time+'</div>'
+      +'<div style="font-size:10px;margin-top:2px;">'+(r.synced?'<span style="color:#2e6b4f;">☁️ مزامن</span>':'<span style="color:#d35400;">📱 محلي فقط</span>')+'</div>'
+      +'</div>'
+      +'<div style="font-size:15px;font-weight:800;color:var(--gd);">'+r.amount.toLocaleString('ar-SA')+'<span style="font-size:10px;color:var(--muted);"> ر.س</span></div>'
+      +'<button class="ibtn p" onclick="printReceipt(allReceipts['+allReceipts.indexOf(r)+'])">🖨️</button>'
+      +'</div>';
+  }).join('');
+}
+
+/* ══ FINANCE: SETTLEMENTS ══ */
+function renderSettlements(){
+  var el=document.getElementById('settlement-cards');
+  var collectors=USERS.filter(function(u){return u.role==='collector';});
+  el.innerHTML='<div style="font-size:14px;font-weight:800;color:var(--gd);margin-bottom:12px;">تسوية المحصّلين</div>';
+  collectors.forEach(function(c){
+    var pending=allReceipts.filter(function(r){return r.collector_id===c.id && r.status==='pending';});
+    var total=pending.reduce(function(s,r){return s+(r.amount||0);},0);
+    el.innerHTML+='<div class="settler-card">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;">'
+      +'<div><div class="settler-name">'+c.name+'</div>'
+      +'<div class="settler-meta">'+pending.length+' سند غير مسوّى</div></div>'
+      +'<div class="settler-amt">'+total.toLocaleString('ar-SA')+' ر.س</div>'
+      +'</div>'
+      +(pending.length>0?
+        '<div class="settler-actions">'
+        +'<button class="settle-btn primary" onclick="openSettle(\''+c.id+'\')">✓ تسوية واستلام المبلغ</button>'
+        +'<button class="settle-btn secondary" onclick="printCollectorReport(\''+c.id+'\')">🖨️ تقرير</button>'
+        +'</div>':'<div style="margin-top:10px;font-size:12px;opacity:.7;">✓ لا توجد مبالغ غير مسوّاة</div>')
+      +'</div>';
+  });
+}
+
+function openSettle(collId){
+  var c=USERS.find(function(u){return u.id===collId;});
+  if(!c) return;
+  settleTarget=collId;
+  var pending=allReceipts.filter(function(r){return r.collector_id===collId && r.status==='pending';});
+  var total=pending.reduce(function(s,r){return s+(r.amount||0);},0);
+  document.getElementById('settle-title').textContent='تسوية — '+c.name;
+  document.getElementById('settle-body').innerHTML=
+    '<div style="background:var(--gp);border:2px solid var(--gpp);border-radius:var(--r);padding:16px;margin-bottom:14px;text-align:center;">'
+    +'<div style="font-size:14px;color:var(--muted);margin-bottom:4px;">إجمالي المبلغ المستلم</div>'
+    +'<div style="font-size:36px;font-weight:900;color:var(--gd);">'+total.toLocaleString('ar-SA')+'</div>'
+    +'<div style="font-size:14px;color:var(--gm);">ريال سعودي</div>'
+    +'<div style="font-size:12px;color:var(--muted);margin-top:4px;">'+amtWords(total)+' ريال</div>'
+    +'</div>'
+    +'<div style="font-size:13px;color:var(--muted);margin-bottom:10px;">'+pending.length+' سند قيد التسوية:</div>'
+    +pending.slice(0,5).map(function(r){
+      return '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;">'
+        +'<span>'+r.seq+' — '+r.name+'</span>'
+        +'<span style="font-weight:700;">'+r.amount.toLocaleString('ar-SA')+' ر.س</span></div>';
+    }).join('')
+    +(pending.length>5?'<div style="font-size:11px;color:var(--muted);text-align:center;padding:6px;">... و'+( pending.length-5)+' سند آخر</div>':'')
+    +'<div style="margin-top:14px;padding:12px;background:var(--gold-l);border-radius:var(--r-sm);font-size:12px;color:var(--gold-d);">'
+    +'⚠️ بالضغط على "اعتماد التسوية" سيتم تأكيد استلام المبلغ وطباعة سند التسوية'
+    +'</div>';
+  openModal('m-settle');
+}
+
+async function confirmSettle(){
+  if(!settleTarget) return;
+  var c=USERS.find(function(u){return u.id===settleTarget;});
+  var pending=allReceipts.filter(function(r){return r.collector_id===settleTarget && r.status==='pending';});
+  var total=pending.reduce(function(s,r){return s+(r.amount||0);},0);
+  var ids=pending.map(function(r){return r.id;});
+  var now=new Date().toISOString();
+
+  // Update locally first
+  allReceipts.forEach(function(r){
+    if(ids.indexOf(r.id)>=0){r.status='settled';r.settled_by=curUser.name;r.settled_at=now;}
+  });
+  var local=LS.get('col_receipts',[]);
+  local.forEach(function(r){
+    if(ids.indexOf(r.id)>=0){r.status='settled';r.settled_by=curUser.name;r.settled_at=now;}
+  });
+  LS.set('col_receipts',local);
+  closeModal('m-settle');
+  renderSettlements();
+  searchReceipts();
+  printSettlement(c, pending, total, now);
+  showToast('✓ تمت التسوية — '+total.toLocaleString('ar-SA')+' ر.س','ok');
+
+  // Sync to server in background
+  if(useDB){
+    sb.from('col_receipts').update({status:'settled',settled_by:curUser.name,settled_at:now}).in('id',ids)
+      .then(function(res){ if(!res.error) console.log('Settlement synced to server'); })
+      .catch(function(e){ console.log('Settlement sync failed:', e); });
+  }
+}
+
+/* ══ SEARCH ══ */
+function buildCollectorFilter(){
+  var sel=document.getElementById('srch-coll');
+  if(!sel) return;
+  while(sel.options.length>1) sel.remove(1);
+  USERS.filter(function(u){return u.role==='collector';}).forEach(function(u){
+    var o=document.createElement('option');
+    o.value=u.id; o.textContent=u.name;
+    sel.appendChild(o);
+  });
+}
+
+function searchReceipts(){
+  var q=(document.getElementById('srch-q')||{}).value||'';
+  var status=(document.getElementById('srch-status')||{}).value||'';
+  var coll=(document.getElementById('srch-coll')||{}).value||'';
+  var from=(document.getElementById('srch-from')||{}).value||'';
+  var to=(document.getElementById('srch-to')||{}).value||'';
+
+  var res=allReceipts.filter(function(r){
+    if(q && !(r.name||'').includes(q) && !(r.description||'').includes(q) && !(r.seq||'').includes(q) && !(r.phone||'').includes(q)) return false;
+    if(status==='pending' && r.status!=='pending') return false;
+    if(status==='settled' && r.status!=='settled') return false;
+    if(coll && r.collector_id!==coll) return false;
+    if(from && r.date < from) return false;
+    if(to && r.date > to) return false;
+    return true;
+  });
+
+  var total=res.reduce(function(s,r){return s+(r.amount||0);},0);
+  document.getElementById('finance-foot').textContent=res.length+' سند — إجمالي: '+total.toLocaleString('ar-SA')+' ر.س';
+
+  var tb=document.getElementById('finance-tbody');
+  if(!res.length){tb.innerHTML='<tr><td colspan="8"><div class="empty">لا توجد نتائج</div></td></tr>';return;}
+  tb.innerHTML=res.map(function(r){
+    var stCls=r.status==='settled'?'b-green':'b-gold';
+    var stLbl=r.status==='settled'?'مسوّاة':'معلقة';
+    return '<tr>'
+      +'<td style="font-size:10px;color:var(--gm);font-weight:700;">'+r.seq+'</td>'
+      +'<td style="font-size:12px;font-weight:700;">'+r.name+'</td>'
+      +'<td style="font-size:11px;">'+r.description+'</td>'
+      +'<td style="font-size:13px;font-weight:800;color:var(--gd);">'+r.amount.toLocaleString('ar-SA')+' ر.س</td>'
+      +'<td style="font-size:11px;">'+r.collector_name+'</td>'
+      +'<td><span class="badge '+stCls+'">'+stLbl+'</span></td>'
+      +'<td style="font-size:10px;color:var(--muted);">'+r.date+'</td>'
+      +'<td><button class="ibtn p" onclick="printReceipt(allReceipts['+allReceipts.indexOf(r)+'])">🖨️</button></td>'
+      +'</tr>';
+  }).join('');
+}
+
+/* ══ PRINT RECEIPT ══ */
+function buildReceiptHTML(r, copy){
+  var dateStr=r.date||new Date().toLocaleDateString('ar-SA');
+  var timeStr=r.time||new Date().toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'});
+  return '<div class="pr-receipt">'
+    +'<div class="pr-hdr"><div style="font-size:22px;">🇸🇩</div>'
+    +'<div class="pr-org">الجالية السودانية بجازان</div>'
+    +'<div class="pr-sub">أمانة العضوية والتحول الرقمي</div></div>'
+    +'<hr class="pr-div2"/>'
+    +'<div class="pr-title">سند قبض رسمي</div>'
+    +'<div class="pr-seq">'+r.seq+'</div>'
+    +'<hr class="pr-div"/>'
+    +'<div class="pr-row"><span class="pr-lbl">التاريخ</span><span class="pr-val">'+dateStr+'</span></div>'
+    +'<div class="pr-row"><span class="pr-lbl">الوقت</span><span class="pr-val">'+timeStr+'</span></div>'
+    +'<div class="pr-row"><span class="pr-lbl">الاسم</span><span class="pr-val">'+r.name+'</span></div>'
+    +(r.phone?'<div class="pr-row"><span class="pr-lbl">الهاتف</span><span class="pr-val">'+r.phone+'</span></div>':'')
+    +(r.national_id?'<div class="pr-row"><span class="pr-lbl">الرقم الوطني</span><span class="pr-val">'+r.national_id+'</span></div>':'')
+    +(r.passport?'<div class="pr-row"><span class="pr-lbl">الجواز</span><span class="pr-val">'+r.passport+'</span></div>':'')
+    +'<div class="pr-row"><span class="pr-lbl">الخدمة</span><span class="pr-val">'+r.description+'</span></div>'
+    +(r.beneficiary_info?'<div class="pr-row"><span class="pr-lbl">المستفيدون</span><span class="pr-val">'+r.beneficiary_info+'</span></div>':'')
+    +(r.notes?'<div class="pr-row"><span class="pr-lbl">ملاحظات</span><span class="pr-val">'+r.notes+'</span></div>':'')
+    +'<hr class="pr-div"/>'
+    +'<div class="pr-amt-box"><div class="pr-amt-n">'+r.amount.toLocaleString('ar-SA')+'</div>'
+    +'<div class="pr-amt-u">ريال سعودي</div>'
+    +'<div class="pr-amt-w">'+amtWords(r.amount)+' ريال</div></div>'
+    +'<hr class="pr-div"/>'
+    +'<div class="pr-row"><span class="pr-lbl">المحصّل</span><span class="pr-val">'+r.collector_name+'</span></div>'
+    +'<div class="pr-sigs"><div class="pr-sig"><div class="pr-sig-line">توقيع المحصّل</div></div>'
+    +'<div class="pr-sig"><div class="pr-sig-line">توقيع المراجع</div></div></div>'
+    +'<div class="pr-footer">الجالية السودانية بجازان · '+new Date().getFullYear()+'</div>'
+    +'<div class="pr-copy">'+copy+'</div>'
+    +'</div>';
+}
+
+function printReceipt(r){
+  if(!r) return;
+  document.getElementById('print-area').innerHTML=
+    buildReceiptHTML(r,'نسخة الجالية')
+    +'<div style="border-top:2px dashed #999;margin:6mm 0;"></div>'
+    +buildReceiptHTML(r,'نسخة المراجع');
+  setTimeout(function(){window.print();},300);
+}
+function printLast(){ if(lastRec) printReceipt(lastRec); else showToast('لا يوجد سند','warn'); }
+
+/* ══ PRINT SETTLEMENT ══ */
+function printSettlement(collector, receipts, total, settledAt){
+  var d=new Date(settledAt||Date.now());
+  var dateStr=d.toLocaleDateString('ar-SA',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  var timeStr=d.toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'});
+  var rows=receipts.map(function(r,i){
+    return '<tr><td style="padding:4px 7px;border:1px solid #ddd;">'+(i+1)+'</td>'
+      +'<td style="padding:4px 7px;border:1px solid #ddd;font-weight:600;">'+r.seq+'</td>'
+      +'<td style="padding:4px 7px;border:1px solid #ddd;">'+r.name+'</td>'
+      +'<td style="padding:4px 7px;border:1px solid #ddd;">'+r.description+'</td>'
+      +'<td style="padding:4px 7px;border:1px solid #ddd;font-weight:700;">'+r.amount.toLocaleString('ar-SA')+' ر.س</td>'
+      +'<td style="padding:4px 7px;border:1px solid #ddd;">'+r.date+'</td></tr>';
+  }).join('');
+
+  document.getElementById('print-area').innerHTML='<div class="pr-settle">'
+    +'<div class="ps-hdr"><div style="font-size:32px;">🇸🇩</div>'
+    +'<div class="ps-org"><h1>الجالية السودانية بجازان</h1>'
+    +'<h2>أمانة العضوية والتحول الرقمي</h2>'
+    +'<p style="font-size:10px;color:#555;">'+dateStr+' — '+timeStr+'</p></div></div>'
+    +'<div class="ps-title"><h3>سند تسوية تحصيل</h3></div>'
+    +'<table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:10px;">'
+    +'<tr><td style="padding:6px 10px;width:35%;color:#666;border:1px solid #ddd;">المحصّل</td>'
+    +'<td style="padding:6px 10px;font-weight:800;border:1px solid #ddd;">'+collector.name+'</td></tr>'
+    +'<tr><td style="padding:6px 10px;color:#666;border:1px solid #ddd;">عدد السندات</td>'
+    +'<td style="padding:6px 10px;font-weight:700;border:1px solid #ddd;">'+receipts.length+' سند</td></tr>'
+    +'<tr style="background:#e8f5ee;"><td style="padding:8px 10px;font-weight:800;border:1px solid #2e6b4f;color:#1a3d2b;">إجمالي المبلغ المستلم</td>'
+    +'<td style="padding:8px 10px;font-weight:900;font-size:18px;border:1px solid #2e6b4f;color:#1a3d2b;">'+total.toLocaleString('ar-SA')+' ريال سعودي</td></tr>'
+    +'<tr><td style="padding:6px 10px;color:#666;border:1px solid #ddd;">المبلغ كتابةً</td>'
+    +'<td style="padding:6px 10px;font-weight:700;border:1px solid #ddd;">'+amtWords(total)+' ريال سعودي</td></tr>'
+    +'<tr><td style="padding:6px 10px;color:#666;border:1px solid #ddd;">اعتمد بواسطة</td>'
+    +'<td style="padding:6px 10px;font-weight:700;border:1px solid #ddd;">'+curUser.name+' — أمين المالية</td></tr>'
+    +'</table>'
+    +'<div style="font-size:12px;font-weight:700;color:#1a3d2b;margin:10px 0 5px;">تفصيل السندات المسوّاة</div>'
+    +'<table class="ps-tbl"><thead><tr><th>#</th><th>رقم السند</th><th>الاسم</th><th>الخدمة</th><th>المبلغ</th><th>التاريخ</th></tr></thead>'
+    +'<tbody>'+rows+'</tbody>'
+    +'<tfoot><tr class="ps-total"><td colspan="4" style="padding:6px 8px;border:1px solid #ddd;text-align:center;">الإجمالي</td>'
+    +'<td style="padding:6px 8px;border:1px solid #ddd;font-size:14px;">'+total.toLocaleString('ar-SA')+' ر.س</td>'
+    +'<td style="border:1px solid #ddd;"></td></tr></tfoot></table>'
+    +'<div class="ps-sigs">'
+    +'<div class="ps-sig"><div class="ps-sig-line">توقيع المحصّل<br/>'+collector.name+'</div></div>'
+    +'<div class="ps-sig"><div class="ps-sig-line">أمين المالية<br/>'+curUser.name+'</div></div>'
+    +'<div class="ps-sig"><div class="ps-sig-line">ختم الجالية</div></div>'
+    +'</div>'
+    +'<div style="text-align:center;margin-top:12px;font-size:10px;color:#777;border-top:1px dashed #ccc;padding-top:6px;">'
+    +'الجالية السودانية بجازان · أمانة المالية · '+new Date().getFullYear()+'</div>'
+    +'</div>';
+  setTimeout(function(){window.print();},400);
+}
+
+function printCollectorReport(collId){
+  var c=USERS.find(function(u){return u.id===collId;});
+  var pending=allReceipts.filter(function(r){return r.collector_id===collId && r.status==='pending';});
+  var total=pending.reduce(function(s,r){return s+(r.amount||0);},0);
+  if(!pending.length){showToast('لا توجد سندات غير مسوّاة لـ '+c.name,'warn');return;}
+  printSettlement(c, pending, total, null);
+}
+
+/* ══ EXPORT EXCEL ══ */
+function exportMyExcel(){
+  var today=new Date().toISOString().slice(0,10);
+  var mine=allReceipts.filter(function(r){return r.collector_id===curUser.id && r.date===today;});
+  if(!mine.length){showToast('لا توجد سندات اليوم','warn');return;}
+  var rows=[['رقم السند','التاريخ','الاسم','الهاتف','الرقم الوطني','الجواز','الخدمة','المبلغ','الحالة','ملاحظات']];
+  mine.forEach(function(r){rows.push([r.seq,r.date,r.name,r.phone||'',r.national_id||'',r.passport||'',r.description,r.amount,r.status==='settled'?'مسوّاة':'معلقة',r.notes||'']);});
+  var ws=XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[{wch:10},{wch:12},{wch:22},{wch:14},{wch:15},{wch:14},{wch:28},{wch:12},{wch:10},{wch:20}];
+  var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'سنداتي اليوم');
+  XLSX.writeFile(wb, 'سنداتي_'+today+'.xlsx');
+  showToast('تم التصدير','ok');
+}
+
+function exportAll(){
+  var q=(document.getElementById('srch-q')||{}).value||'';
+  var status=(document.getElementById('srch-status')||{}).value||'';
+  var coll=(document.getElementById('srch-coll')||{}).value||'';
+  var from=(document.getElementById('srch-from')||{}).value||'';
+  var to=(document.getElementById('srch-to')||{}).value||'';
+  var res=allReceipts.filter(function(r){
+    if(q && !(r.name||'').includes(q) && !(r.description||'').includes(q) && !(r.seq||'').includes(q)) return false;
+    if(status==='pending' && r.status!=='pending') return false;
+    if(status==='settled' && r.status!=='settled') return false;
+    if(coll && r.collector_id!==coll) return false;
+    if(from && r.date<from) return false;
+    if(to && r.date>to) return false;
+    return true;
+  });
+  if(!res.length){showToast('لا توجد نتائج','warn');return;}
+  var rows=[['رقم السند','التاريخ','الاسم','الهاتف','الرقم الوطني','الجواز','الخدمة','المبلغ','المحصّل','الحالة','أُسوّي بواسطة','تاريخ التسوية','ملاحظات']];
+  res.forEach(function(r){rows.push([r.seq,r.date,r.name,r.phone||'',r.national_id||'',r.passport||'',r.description,r.amount,r.collector_name,r.status==='settled'?'مسوّاة':'معلقة',r.settled_by||'',r.settled_at?r.settled_at.slice(0,10):'',r.notes||'']);});
+  var ws=XLSX.utils.aoa_to_sheet(rows);
+  var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'سجل السندات');
+  XLSX.writeFile(wb, 'سجل_السندات_'+new Date().toISOString().slice(0,10)+'.xlsx');
+  showToast('تم التصدير','ok');
+}
+
+
+/* ══ BENEFICIARY TYPE ══ */
+var bCounts = {adults:1, fadults:1, children:0};
+
+function setBtype(type){
+  document.getElementById('f-btype').value = type;
+  document.querySelectorAll('.btype').forEach(function(b){ b.classList.remove('active'); });
+  document.getElementById('bt-'+type).classList.add('active');
+  document.getElementById('single-section').style.display  = type==='single'?'block':'none';
+  document.getElementById('family-section').style.display  = type==='family'?'block':'none';
+  updateBeneficiaryDisplay();
+}
+
+function chgCnt(key, delta){
+  bCounts[key] = Math.max(0, (bCounts[key]||0) + delta);
+  if(key==='adults' && bCounts.adults < 1) bCounts.adults = 1;
+  if(key==='fadults' && bCounts.fadults < 1) bCounts.fadults = 1;
+  var el = document.getElementById(key+'-cnt');
+  if(el) el.textContent = bCounts[key];
+  updateBeneficiaryDisplay();
+}
+
+function updateBeneficiaryDisplay(){
+  var type = document.getElementById('f-btype').value;
+  if(type === 'single'){
+    var lbl = document.getElementById('single-total-lbl');
+    if(lbl) lbl.textContent = bCounts.adults + (bCounts.adults===1?' شخص':' أشخاص');
+  } else {
+    var total = bCounts.fadults + bCounts.children;
+    var lbl2 = document.getElementById('family-total-lbl');
+    if(lbl2) lbl2.textContent = total + ' فرد ('+bCounts.fadults+' كبار + '+bCounts.children+' أطفال)';
+  }
+}
+
+function getBeneficiaryText(){
+  var type = document.getElementById('f-btype').value;
+  if(type === 'single'){
+    return bCounts.adults === 1 ? 'شخص واحد كبير' : bCounts.adults + ' أشخاص كبار';
+  } else {
+    return 'عائلة: ' + bCounts.fadults + ' كبار + ' + bCounts.children + ' أطفال (إجمالي ' + (bCounts.fadults+bCounts.children) + ')';
+  }
+}
+
+function setAmt(n){ colAmt = n; updAmt(); }
+
+/* ══ ARABIC WORDS ══ */
+function amtWords(n){
+  if(n===0)return 'صفر';
+  var ones=['','واحد','اثنان','ثلاثة','أربعة','خمسة','ستة','سبعة','ثمانية','تسعة','عشرة','أحد عشر','اثنا عشر','ثلاثة عشر','أربعة عشر','خمسة عشر','ستة عشر','سبعة عشر','ثمانية عشر','تسعة عشر'];
+  var tens=['','','عشرون','ثلاثون','أربعون','خمسون','ستون','سبعون','ثمانون','تسعون'];
+  if(n<20)return ones[n];
+  if(n<100){var r=n%10;return(r>0?ones[r]+' و':'')+tens[Math.floor(n/10)];}
+  if(n<1000){var h=Math.floor(n/100);var re=n%100;var hs=h===1?'مائة':h===2?'مئتان':ones[h]+' مئة';return hs+(re>0?' و'+amtWords(re):'');}
+  if(n<10000){var t=Math.floor(n/1000);var re2=n%1000;var ts=t===1?'ألف':t===2?'ألفان':ones[t]+' آلاف';return ts+(re2>0?' و'+amtWords(re2):'');}
+  return n.toLocaleString('ar-SA');
+}
+
+updateBeneficiaryDisplay();
+
+
+/* ══ AUTO SYNC ══ */
+var syncTimer = null;
+var isSyncing = false;
+
+function scheduleAutoSync(){
+  // Retry every 30 seconds
+  if(syncTimer) clearInterval(syncTimer);
+  syncTimer = setInterval(function(){
+    autoSyncPending();
+  }, 30000);
+}
+
+async function autoSyncPending(){
+  if(isSyncing || !useDB) return;
+  var local = LS.get('col_receipts',[]);
+  var pending = local.filter(function(r){ return r.sync_pending || !r.synced; });
+  if(!pending.length){
+    if(syncTimer){ clearInterval(syncTimer); syncTimer=null; }
+    return;
+  }
+
+  isSyncing = true;
+  updateSyncIndicator('syncing', pending.length);
+
+  try{
+    // Get existing IDs to avoid duplicates
+    var existRes = await sb.from('col_receipts').select('id');
+    var existIds = (existRes.data||[]).map(function(r){return r.id;});
+    var toUpload = pending.filter(function(r){ return existIds.indexOf(r.id)<0; });
+
+    if(toUpload.length > 0){
+      // Upload in batches
+      for(var i=0; i<toUpload.length; i+=10){
+        var batch = toUpload.slice(i,i+10);
+        var res = await sb.from('col_receipts').insert(batch);
+        if(!res.error){
+          // Mark as synced
+          batch.forEach(function(uploaded){
+            var idx = local.findIndex(function(l){ return l.id===uploaded.id; });
+            if(idx>=0){ local[idx].synced=true; local[idx].sync_pending=false; }
+          });
+        }
+      }
+      LS.set('col_receipts', local);
+      allReceipts = local;
+    } else {
+      // Already on server, mark local as synced
+      pending.forEach(function(r){
+        var idx = local.findIndex(function(l){ return l.id===r.id; });
+        if(idx>=0){ local[idx].synced=true; local[idx].sync_pending=false; }
+      });
+      LS.set('col_receipts', local);
+    }
+
+    var stillPending = local.filter(function(r){ return r.sync_pending; }).length;
+    updateSyncIndicator('ok', stillPending);
+    if(stillPending === 0 && syncTimer){
+      clearInterval(syncTimer); syncTimer=null;
+    }
+    renderMyReceipts();
+    if(curUser && curUser.role==='finance') renderSettlements();
+
+  }catch(e){
+    updateSyncIndicator('err', pending.length);
+    console.log('Auto sync failed:', e);
+  }
+  isSyncing = false;
+}
+
+function updateSyncIndicator(status, count){
+  var indicators = document.querySelectorAll('.sync-indicator');
+  indicators.forEach(function(el){
+    if(status==='ok' && count===0){
+      el.innerHTML='🟢 كل البيانات مزامنة';
+      el.style.color='#2e6b4f';
+    } else if(status==='syncing'){
+      el.innerHTML='🔄 جاري مزامنة '+count+' سند...';
+      el.style.color='#1a5fa8';
+    } else if(status==='err'){
+      el.innerHTML='🔴 '+count+' سند غير مزامن (سيُعاد المحاولة)';
+      el.style.color='#c0392b';
+    } else {
+      el.innerHTML='🟡 '+count+' سند بانتظار المزامنة';
+      el.style.color='#8a6010';
+    }
+  });
+}
+
+// Check pending on startup
+async function checkAndSyncPending(){
+  var local = LS.get('col_receipts',[]);
+  var pending = local.filter(function(r){ return r.sync_pending||!r.synced; });
+  if(pending.length > 0){
+    updateSyncIndicator('pending', pending.length);
+    showToast('⚠️ يوجد '+pending.length+' سند غير مزامن — جاري المزامنة التلقائية','warn');
+    scheduleAutoSync();
+    // Try immediately
+    setTimeout(autoSyncPending, 2000);
+  } else {
+    updateSyncIndicator('ok', 0);
+  }
+}
+
+// Listen for online event
+window.addEventListener('online', function(){
+  showToast('✅ عاد الاتصال — جاري مزامنة البيانات','ok');
+  setTimeout(autoSyncPending, 1000);
+});
+window.addEventListener('offline', function(){
+  showToast('⚠️ انقطع الاتصال — البيانات تُحفظ محلياً','warn');
+});
+
+/* ══ SYNC TO SERVER ══ */
+async function syncToServer(){
+  var btns = ['sync-btn','sync-btn-coll'];
+  btns.forEach(function(id){
+    var b=document.getElementById(id);
+    if(b){b.disabled=true;b.innerHTML='⏳ جاري الرفع...';}
+  });
+
+  var lbl = document.getElementById('sync-status-lbl');
+
+  if(!useDB){
+    showToast('لا يوجد اتصال بقاعدة البيانات','err');
+    btns.forEach(function(id){var b=document.getElementById(id);if(b){b.disabled=false;b.innerHTML=id==='sync-btn'?'📤 رفع الآن':'☁️ رفع بياناتي';}});
+    return;
+  }
+
+  var local = LS.get('col_receipts',[]);
+  if(!local.length){
+    showToast('لا توجد بيانات محلية للرفع','warn');
+    btns.forEach(function(id){var b=document.getElementById(id);if(b){b.disabled=false;b.innerHTML=id==='sync-btn'?'📤 رفع الآن':'☁️ رفع بياناتي';}});
+    return;
+  }
+
+  // Get existing IDs from server to avoid duplicates
+  var synced = 0, failed = 0, skipped = 0;
+  try{
+    var existing = await sb.from('col_receipts').select('id');
+    var existingIds = (existing.data||[]).map(function(r){return r.id;});
+
+    // Filter only unsynced records
+    var toSync = local.filter(function(r){ return existingIds.indexOf(r.id)<0; });
+
+    if(toSync.length === 0){
+      showToast('جميع البيانات مرفوعة مسبقاً ✅','ok');
+      if(lbl) lbl.textContent = 'جميع البيانات مزامنة ✅';
+      btns.forEach(function(id){var b=document.getElementById(id);if(b){b.disabled=false;b.innerHTML=id==='sync-btn'?'✅ مزامن':'✅ مزامن';}});
+      return;
+    }
+
+    if(lbl) lbl.textContent = 'جاري رفع '+toSync.length+' سند...';
+
+    // Upload in batches of 20
+    var batchSize = 20;
+    for(var i=0; i<toSync.length; i+=batchSize){
+      var batch = toSync.slice(i, i+batchSize);
+      var res = await sb.from('col_receipts').insert(batch);
+      if(res.error){
+        console.log('Batch error:', res.error);
+        failed += batch.length;
+      } else {
+        synced += batch.length;
+      }
+    }
+
+    // Reload from server
+    await loadReceipts();
+
+    var msg = '✅ تم رفع '+synced+' سند بنجاح';
+    if(failed>0) msg += ' | فشل '+failed;
+    showToast(msg, synced>0?'ok':'err');
+    if(lbl) lbl.textContent = msg;
+
+    btns.forEach(function(id){
+      var b=document.getElementById(id);
+      if(b){
+        b.disabled=false;
+        b.innerHTML=id==='sync-btn'?'✅ '+synced+' سند مرفوع':'✅ تم الرفع';
+      }
+    });
+
+  }catch(e){
+    showToast('خطأ في الاتصال: '+e.message,'err');
+    if(lbl) lbl.textContent = 'خطأ: '+e.message;
+    btns.forEach(function(id){var b=document.getElementById(id);if(b){b.disabled=false;b.innerHTML=id==='sync-btn'?'📤 رفع الآن':'☁️ رفع بياناتي';}});
+  }
+}
+
+/* Auto-sync check on load */
+async function checkSyncStatus(){
+  if(!useDB) return;
+  try{
+    var local = LS.get('col_receipts',[]);
+    if(!local.length) return;
+    var res = await sb.from('col_receipts').select('id');
+    var serverCount = (res.data||[]).length;
+    var localCount = local.length;
+    var unsynced = local.filter(function(r){
+      return !(res.data||[]).find(function(s){return s.id===r.id;});
+    }).length;
+
+    var lbl = document.getElementById('sync-status-lbl');
+    if(unsynced > 0){
+      if(lbl) lbl.textContent = unsynced+' سند غير مرفوع — اضغط لرفعها';
+      showToast('⚠️ يوجد '+unsynced+' سند غير مرفوع لقاعدة البيانات','warn');
+    } else {
+      if(lbl) lbl.textContent = 'جميع البيانات مزامنة ✅ ('+serverCount+' سند)';
+    }
+  }catch(e){ console.log('Sync check failed'); }
+}
+
+/* ══ MODAL / TOAST ══ */
+function openModal(id){document.getElementById(id).classList.add('show');}
+function closeModal(id){document.getElementById(id).classList.remove('show');}
+document.querySelectorAll('.modal-bg').forEach(function(b){b.addEventListener('click',function(e){if(e.target===b)b.classList.remove('show');});});
+function showToast(msg,type){var t=document.getElementById('toast');t.textContent=msg;t.className='toast '+(type||'ok')+' show';setTimeout(function(){t.classList.remove('show');},3200);}
+</script>
+</body>
+</html>
