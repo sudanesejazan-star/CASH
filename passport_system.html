@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>نظام طلبات الجواز — الجالية السودانية بجازان</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap');
+:root{
+  --gd:#1a3d2b;--gm:#2e6b4f;--gl:#3a9e6f;--gp:#e8f5ee;--gpp:#c8e6d4;
+  --gold:#c9a84c;--gold-l:#f5e9c8;--gold-d:#8a6010;
+  --blue:#1a5fa8;--blue-p:#e8f0fb;
+  --red:#c0392b;--red-p:#fdf0ee;
+  --orange:#e67e22;--orange-p:#fef5ec;
+  --ink:#1c2a22;--muted:#6b7c74;--border:#d4e0d9;--surf:#f0f7f3;--white:#fff;
+  --r:14px;--r-sm:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:'Tajawal',Arial,sans-serif;background:var(--surf);color:var(--ink);min-height:100vh;}
+button,input,select,textarea{font-family:'Tajawal',Arial,sans-serif;}
+
+/* ══ TOAST ══ */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);padding:12px 24px;border-radius:30px;font-size:14px;font-weight:700;opacity:0;transition:all .3s;z-index:9999;pointer-events:none;box-shadow:0 4px 20px rgba(0,0,0,.25);white-space:nowrap;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.ok{background:var(--gm);color:#fff;}.toast.err{background:var(--red);color:#fff;}.toast.warn{background:var(--gold-d);color:#fff;}
+
+/* ══ SHARED HEADER ══ */
+.page-hdr{background:linear-gradient(135deg,var(--gd),var(--gm));padding:20px;display:flex;align-items:center;gap:14px;}
+.hdr-emblem{width:54px;height:54px;background:var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;box-shadow:0 3px 12px rgba(0,0,0,.3);}
+.hdr-text h1{color:#fff;font-size:17px;font-weight:900;}
+.hdr-text p{color:var(--gold);font-size:11px;margin-top:2px;}
+.hdr-right{margin-right:auto;display:flex;gap:8px;align-items:center;}
+.hdr-btn{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;padding:7px 14px;border-radius:var(--r-sm);font-size:12px;font-weight:700;cursor:pointer;}
+
+/* ══ REGISTER PAGE ══ */
+#reg-page{display:block;}
+.reg-main{max-width:620px;margin:0 auto;padding:20px 16px 40px;}
+
+/* STEPS */
+.steps{display:flex;align-items:flex-start;gap:0;margin-bottom:24px;background:var(--white);border-radius:var(--r);padding:16px;box-shadow:0 2px 8px rgba(0,0,0,.06);}
+.step{flex:1;display:flex;flex-direction:column;align-items:center;position:relative;}
+.step:not(:last-child)::after{content:'';position:absolute;top:18px;right:-50%;width:100%;height:2px;background:var(--border);z-index:0;}
+.step.done::after{background:var(--gm);}
+.step-dot{width:36px;height:36px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;background:var(--white);color:var(--muted);position:relative;z-index:1;transition:all .3s;}
+.step.active .step-dot{border-color:var(--gm);background:var(--gm);color:#fff;}
+.step.done .step-dot{border-color:var(--gm);background:var(--gm);color:#fff;}
+.step-lbl{font-size:10px;color:var(--muted);margin-top:6px;text-align:center;font-weight:600;}
+.step.active .step-lbl,.step.done .step-lbl{color:var(--gm);}
+
+/* CARD */
+.card{background:var(--white);border-radius:var(--r);padding:20px;margin-bottom:16px;box-shadow:0 2px 12px rgba(0,0,0,.07);}
+.card-title{font-size:15px;font-weight:800;color:var(--gd);margin-bottom:16px;display:flex;align-items:center;gap:8px;}
+.card-title::before{content:'';width:4px;height:18px;background:var(--gm);border-radius:2px;display:inline-block;}
+
+/* FORM */
+.frow{margin-bottom:14px;}
+.f2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;}
+.fl{font-size:12px;color:var(--muted);font-weight:700;display:block;margin-bottom:5px;}
+.req{color:var(--red);}
+.finput,.fsel,.ftxt{width:100%;border:1.5px solid var(--border);border-radius:var(--r-sm);padding:11px 13px;font-size:15px;color:var(--ink);background:var(--surf);outline:none;appearance:none;transition:border-color .15s;}
+.finput:focus,.fsel:focus,.ftxt:focus{border-color:var(--gm);background:var(--white);}
+.finput.ltr{direction:ltr;text-align:left;}
+.finput.err,.fsel.err{border-color:var(--red);background:var(--red-p);}
+.ftxt{resize:none;min-height:80px;font-size:14px;line-height:1.7;}
+
+/* TYPE BUTTONS */
+.type-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+.type-btn{padding:16px 10px;border:2px solid var(--border);border-radius:var(--r);background:var(--white);cursor:pointer;text-align:center;transition:all .2s;}
+.type-btn:hover{border-color:var(--gm);background:var(--gp);}
+.type-btn.active{border-color:var(--gm);background:var(--gm);}
+.type-btn .ico{font-size:32px;margin-bottom:6px;}
+.type-btn .lbl{font-size:13px;font-weight:800;color:var(--ink);}
+.type-btn .sub{font-size:11px;color:var(--muted);margin-top:3px;}
+.type-btn.active .lbl,.type-btn.active .sub{color:#fff;}
+
+/* UPLOAD */
+.upload-zone{border:2px dashed var(--gpp);border-radius:var(--r);padding:24px;text-align:center;cursor:pointer;transition:all .2s;position:relative;background:var(--gp);}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--gm);background:var(--gpp);}
+.upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.upload-zone .ico{font-size:36px;margin-bottom:8px;}
+.upload-zone .lbl{font-size:14px;font-weight:700;color:var(--gd);}
+.upload-zone .sub{font-size:11px;color:var(--muted);margin-top:4px;}
+.file-preview{display:none;align-items:center;gap:10px;background:var(--white);border:1px solid var(--gpp);border-radius:var(--r-sm);padding:10px 14px;margin-top:10px;}
+.file-preview.show{display:flex;}
+.file-thumb{width:44px;height:44px;border-radius:6px;object-fit:cover;border:1px solid var(--border);flex-shrink:0;}
+.file-thumb-icon{width:44px;height:44px;border-radius:6px;background:var(--blue-p);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+.file-name{font-size:12px;font-weight:700;color:var(--ink);}
+.file-size{font-size:11px;color:var(--muted);margin-top:2px;}
+.file-remove{margin-right:auto;background:var(--red-p);color:var(--red);border:none;border-radius:var(--r-sm);padding:5px 10px;font-size:11px;cursor:pointer;}
+
+/* NAV BTNS */
+.nav-btns{display:flex;gap:10px;margin-top:8px;}
+.nav-btn{flex:1;padding:14px;border:none;border-radius:var(--r);font-size:16px;font-weight:800;cursor:pointer;transition:all .15s;}
+.nav-btn.next{background:linear-gradient(135deg,var(--gm),var(--gd));color:#fff;box-shadow:0 4px 16px rgba(46,107,79,.3);}
+.nav-btn.prev{background:var(--surf);border:1.5px solid var(--border);color:var(--muted);}
+.nav-btn:disabled{opacity:.5;cursor:not-allowed;}
+.nav-btn.submit{background:linear-gradient(135deg,var(--gold-d),#5c4010);color:#fff;box-shadow:0 4px 16px rgba(138,96,16,.3);}
+
+/* SUCCESS */
+.success-card{background:linear-gradient(135deg,var(--gd),var(--gm));border-radius:var(--r);padding:32px 20px;text-align:center;color:#fff;}
+.success-icon{font-size:64px;margin-bottom:16px;}
+.success-card h2{font-size:22px;font-weight:900;margin-bottom:8px;}
+.success-card p{font-size:14px;opacity:.85;line-height:1.7;}
+.ref-num{background:var(--gold);color:var(--gd);padding:10px 24px;border-radius:30px;font-size:20px;font-weight:900;display:inline-block;margin:16px 0;}
+.success-btns{display:flex;gap:10px;margin-top:20px;justify-content:center;flex-wrap:wrap;}
+.suc-btn{padding:12px 24px;border:none;border-radius:var(--r-sm);font-size:14px;font-weight:800;cursor:pointer;}
+.suc-btn.primary{background:var(--gold);color:var(--gd);}
+.suc-btn.secondary{background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);}
+
+/* ══ ADMIN PAGE ══ */
+#admin-page{display:none;}
+.admin-login{min-height:100vh;display:flex;flex-direction:column;}
+.login-hero{background:linear-gradient(160deg,var(--gd),var(--gm));padding:44px 24px 36px;text-align:center;color:#fff;}
+.login-hero .flag{font-size:52px;margin-bottom:10px;}
+.login-hero h1{font-size:20px;font-weight:900;margin-bottom:4px;}
+.login-hero p{font-size:12px;opacity:.8;}
+.login-box{max-width:400px;margin:0 auto;padding:28px 20px 40px;width:100%;}
+.linput{width:100%;border:1.5px solid var(--border);border-radius:var(--r-sm);padding:13px 14px;font-size:16px;color:var(--ink);outline:none;background:var(--surf);transition:border-color .15s;margin-bottom:14px;}
+.linput:focus{border-color:var(--gm);}
+.lbtn{width:100%;padding:14px;background:linear-gradient(135deg,var(--gm),var(--gd));color:#fff;border:none;border-radius:var(--r-sm);font-size:16px;font-weight:800;cursor:pointer;}
+.lerr{background:var(--red-p);color:var(--red);border:1px solid #e8c5c1;border-radius:var(--r-sm);padding:9px;font-size:13px;text-align:center;margin-bottom:12px;display:none;}
+.lerr.show{display:block;}
+
+/* ADMIN DASHBOARD */
+#admin-app{display:none;}
+#admin-app.show{display:flex;flex-direction:column;min-height:100vh;}
+.adm-hdr{background:linear-gradient(135deg,var(--gd),var(--gm));padding:14px 20px;display:flex;align-items:center;gap:12px;flex-shrink:0;}
+.adm-hdr h1{color:#fff;font-size:16px;font-weight:900;}
+.adm-hdr p{color:var(--gold);font-size:11px;}
+.adm-clock{margin-right:auto;color:var(--gold);font-size:18px;font-weight:900;}
+.adm-sync{font-size:11px;padding:5px 12px;border-radius:20px;font-weight:700;background:rgba(255,255,255,.15);color:#fff;}
+.logout-btn{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff;padding:6px 12px;border-radius:var(--r-sm);font-size:12px;cursor:pointer;}
+
+/* TABS */
+.tab-bar{background:rgba(0,0,0,.2);display:flex;overflow-x:auto;}
+.tab-btn{padding:10px 16px;color:rgba(255,255,255,.6);font-size:12px;font-weight:700;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;font-family:'Tajawal',Arial;background:none;border-top:none;border-left:none;border-right:none;}
+.tab-btn.active{color:var(--gold);border-bottom-color:var(--gold);}
+
+/* DASHBOARD SCREENS */
+.adm-screens{flex:1;overflow-y:auto;}
+.adm-screen{display:none;padding:16px;max-width:1100px;margin:0 auto;}
+.adm-screen.active{display:block;}
+
+/* KPI */
+.kpi-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:20px;}
+@media(min-width:500px){.kpi-grid{grid-template-columns:repeat(4,1fr);}}
+.kpi{background:var(--white);border-radius:var(--r);padding:16px 12px;text-align:center;box-shadow:0 2px 12px rgba(0,0,0,.07);border-top:4px solid var(--gm);transition:transform .2s;}
+.kpi:hover{transform:translateY(-3px);}
+.kpi-icon{font-size:26px;margin-bottom:4px;}
+.kpi-val{font-size:28px;font-weight:900;color:var(--gd);line-height:1;}
+.kpi-lbl{font-size:10px;color:var(--muted);margin-top:4px;font-weight:600;}
+.kpi.gold{border-top-color:var(--gold);}.kpi.gold .kpi-val{color:var(--gold-d);}
+.kpi.blue{border-top-color:var(--blue);}.kpi.blue .kpi-val{color:var(--blue);}
+.kpi.orange{border-top-color:var(--orange);}.kpi.orange .kpi-val{color:var(--orange);}
+
+/* CHARTS */
+.charts-row{display:grid;grid-template-columns:1fr;gap:16px;margin-bottom:20px;}
+@media(min-width:700px){.charts-row{grid-template-columns:1fr 1fr;}}
+
+/* SEARCH BAR */
+.sbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+.sbox{border:1.5px solid var(--border);border-radius:var(--r-sm);padding:9px 12px;font-size:13px;outline:none;background:var(--white);font-family:'Tajawal',Arial;flex:1;min-width:130px;color:var(--ink);}
+.sbox:focus{border-color:var(--gm);}
+.sfsel{border:1.5px solid var(--border);border-radius:var(--r-sm);padding:8px 10px;font-size:13px;outline:none;background:var(--white);font-family:'Tajawal',Arial;color:var(--ink);appearance:none;}
+.fbtn{padding:9px 16px;border:none;border-radius:var(--r-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:'Tajawal',Arial;}
+.fbtn.g{background:var(--gm);color:#fff;}.fbtn.b{background:var(--blue);color:#fff;}
+.fbtn.o{background:var(--surf);border:1px solid var(--border);color:var(--muted);}
+
+/* TABLE */
+.twrap{overflow-x:auto;}
+.tbl{width:100%;border-collapse:collapse;font-size:12px;min-width:700px;}
+.tbl th{padding:10px 12px;background:var(--surf);color:var(--muted);font-weight:700;text-align:right;border-bottom:2px solid var(--border);font-size:11px;white-space:nowrap;cursor:pointer;}
+.tbl th:hover{color:var(--gd);}
+.tbl td{padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.tbl tr:hover td{background:var(--gp);}
+.badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:10px;font-weight:700;}
+.b-green{background:var(--gp);color:var(--gd);}.b-gold{background:var(--gold-l);color:var(--gold-d);}
+.b-blue{background:var(--blue-p);color:var(--blue);}.b-orange{background:var(--orange-p);color:var(--orange);}
+.b-red{background:var(--red-p);color:var(--red);}
+.ibtn{padding:5px 10px;border:1px solid var(--border);border-radius:6px;background:transparent;font-size:11px;cursor:pointer;font-family:'Tajawal',Arial;margin:0 2px;}
+.ibtn.b{color:var(--blue);border-color:#c5d5e8;}.ibtn.g{color:var(--gm);border-color:var(--gpp);}
+.ibtn.r{color:var(--red);border-color:#e8c5c1;}
+
+/* DETAIL MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:800;display:none;align-items:flex-end;justify-content:center;}
+.modal-bg.show{display:flex;}
+@media(min-width:600px){.modal-bg{align-items:center;padding:16px;}}
+.modal{background:var(--white);border-radius:20px 20px 0 0;padding:20px 18px 32px;width:100%;max-height:92vh;overflow-y:auto;}
+@media(min-width:600px){.modal{border-radius:20px;max-width:580px;}}
+.mhandle{width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 14px;}
+.mclose{float:left;background:var(--surf);border:none;border-radius:var(--r-sm);padding:6px 12px;cursor:pointer;font-size:13px;color:var(--muted);}
+.detail-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.detail-row:last-child{border-bottom:none;}
+.detail-lbl{color:var(--muted);font-weight:600;}
+.detail-val{font-weight:700;text-align:left;}
+.passport-img{width:100%;border-radius:var(--r-sm);border:1px solid var(--border);margin-top:10px;object-fit:contain;max-height:200px;}
+.status-btns{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;}
+.sbtn{flex:1;padding:10px;border:none;border-radius:var(--r-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:'Tajawal',Arial;min-width:80px;}
+.sbtn.processing{background:var(--blue);color:#fff;}
+.sbtn.ready{background:var(--gm);color:#fff;}
+.sbtn.delivered{background:var(--gold-d);color:#fff;}
+.sbtn.cancelled{background:var(--red);color:#fff;}
+
+/* PAGINATION */
+.pag{display:flex;align-items:center;gap:8px;padding:10px 14px;border-top:1px solid var(--border);flex-wrap:wrap;}
+.pbtn{padding:5px 12px;border:1.5px solid var(--border);border-radius:var(--r-sm);background:var(--white);cursor:pointer;font-size:12px;font-family:'Tajawal',Arial;}
+.pbtn:hover:not(:disabled){background:var(--gp);border-color:var(--gm);}
+.pbtn:disabled{opacity:.3;cursor:not-allowed;}
+
+/* SPINNER */
+.spin{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertical-align:middle;margin-left:5px;}
+@keyframes sp{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+<div class="toast" id="toast"></div>
+
+<!-- ═══════════════════════════════════════
+     REGISTER PAGE
+═══════════════════════════════════════ -->
+<div id="reg-page">
+
+  <!-- Header -->
+  <div class="page-hdr">
+    <div class="hdr-emblem">🛂</div>
+    <div class="hdr-text">
+      <h1>طلب جواز السفر السوداني</h1>
+      <p>الجالية السودانية بجازان — تجديد وإصدار</p>
+    </div>
+    <div class="hdr-right">
+      <button class="hdr-btn" onclick="showAdminLogin()">🔐 الإدارة</button>
+    </div>
+  </div>
+
+  <div class="reg-main">
+
+    <!-- Steps -->
+    <div class="steps">
+      <div class="step active" id="st1"><div class="step-dot">1</div><div class="step-lbl">نوع الطلب</div></div>
+      <div class="step" id="st2"><div class="step-dot">2</div><div class="step-lbl">البيانات</div></div>
+      <div class="step" id="st3"><div class="step-dot">3</div><div class="step-lbl">الملفات</div></div>
+      <div class="step" id="st4"><div class="step-dot">4</div><div class="step-lbl">المراجعة</div></div>
+    </div>
+
+    <!-- SCREEN 1: نوع الطلب -->
+    <div class="screen active" id="sc1">
+      <div class="card">
+        <div class="card-title">ما الذي تحتاجه؟</div>
+        <div class="type-grid">
+          <button class="type-btn" id="tb-renew" onclick="selType('renew')">
+            <div class="ico">🔄</div>
+            <div class="lbl">تجديد جواز</div>
+            <div class="sub">جوازك منتهي أو قارب على الانتهاء</div>
+          </button>
+          <button class="type-btn" id="tb-new" onclick="selType('new')">
+            <div class="ico">✨</div>
+            <div class="lbl">إصدار جواز جديد</div>
+            <div class="sub">لا يوجد جواز أو جواز مفقود</div>
+          </button>
+        </div>
+      </div>
+      <div class="nav-btns">
+        <button class="nav-btn next" onclick="goStep(2)">التالي ←</button>
+      </div>
+    </div>
+
+    <!-- SCREEN 2: البيانات -->
+    <div class="screen" id="sc2">
+      <div class="card">
+        <div class="card-title">البيانات الشخصية</div>
+        <div class="frow">
+          <label class="fl">الاسم الكامل (رباعي) <span class="req">*</span></label>
+          <input class="finput" id="r-name" type="text" placeholder="محمد أحمد عبدالله علي"/>
+        </div>
+        <div class="f2">
+          <div>
+            <label class="fl">الرقم الوطني <span class="req">*</span></label>
+            <input class="finput ltr" id="r-nid" type="text" inputmode="numeric" placeholder="11 رقم" maxlength="11" oninput="this.value=this.value.replace(/[^0-9]/g,'')"/>
+          </div>
+          <div>
+            <label class="fl">رقم الجوال <span class="req">*</span></label>
+            <input class="finput ltr" id="r-phone" type="tel" inputmode="numeric" placeholder="05xxxxxxxx" maxlength="10" oninput="this.value=this.value.replace(/[^0-9]/g,'')"/>
+          </div>
+        </div>
+        <div class="f2">
+          <div>
+            <label class="fl">تاريخ الميلاد <span class="req">*</span></label>
+            <input class="finput" id="r-dob" type="date"/>
+          </div>
+          <div>
+            <label class="fl">الجنس <span class="req">*</span></label>
+            <select class="fsel" id="r-gender">
+              <option value="">— اختر —</option>
+              <option value="male">ذكر</option>
+              <option value="female">أنثى</option>
+            </select>
+          </div>
+        </div>
+        <div class="frow">
+          <label class="fl">منطقة السكن في جازان <span class="req">*</span></label>
+          <select class="fsel" id="r-area">
+            <option value="">— اختر المنطقة —</option>
+            <option>جازان المدينة</option>
+            <option>أبو عريش</option>
+            <option>صبيا</option>
+            <option>العارضة</option>
+            <option>صامطة</option>
+            <option>أحد المسارحة</option>
+            <option>بيش</option>
+            <option>الدرب</option>
+            <option>العيدابي</option>
+            <option>دار بني مالك</option>
+            <option>فيفا</option>
+            <option>الريث</option>
+            <option>الحرث</option>
+            <option>ضمد</option>
+            <option>أخرى</option>
+          </select>
+        </div>
+        <div class="frow" id="passport-num-row">
+          <label class="fl">رقم الجواز الحالي</label>
+          <input class="finput ltr" id="r-passport" type="text" placeholder="A12345678"/>
+        </div>
+        <div class="frow">
+          <label class="fl">ملاحظات إضافية</label>
+          <textarea class="ftxt" id="r-notes" placeholder="أي تفاصيل إضافية تريد ذكرها..."></textarea>
+        </div>
+      </div>
+      <div class="nav-btns">
+        <button class="nav-btn prev" onclick="goStep(1)">→ السابق</button>
+        <button class="nav-btn next" onclick="goStep(3)">التالي ←</button>
+      </div>
+    </div>
+
+    <!-- SCREEN 3: الملفات -->
+    <div class="screen" id="sc3">
+      <div class="card">
+        <div class="card-title">إرفاق الجواز / الوثائق</div>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.7;">
+          أرفق صورة واضحة من جوازك الحالي أو وثيقة الهوية الوطنية. يمكنك التقاط صورة مباشرة من كاميرا هاتفك.
+        </p>
+
+        <!-- Passport upload -->
+        <div style="margin-bottom:16px;">
+          <label class="fl">صورة الجواز / الهوية <span class="req">*</span></label>
+          <div class="upload-zone" id="drop1">
+            <input type="file" id="f-passport" accept="image/*,application/pdf" onchange="handleFile('passport',this.files[0])"/>
+            <div class="ico">📄</div>
+            <div class="lbl">انقر أو اسحب الملف هنا</div>
+            <div class="sub">صورة أو PDF · الحجم الأقصى 5MB</div>
+          </div>
+          <div class="file-preview" id="prev-passport">
+            <img id="thumb-passport" class="file-thumb" src="" alt=""/>
+            <div>
+              <div class="file-name" id="fname-passport"></div>
+              <div class="file-size" id="fsize-passport"></div>
+            </div>
+            <button class="file-remove" onclick="removeFile('passport')">✕ إزالة</button>
+          </div>
+        </div>
+
+        <!-- Photo upload -->
+        <div>
+          <label class="fl">صورة شخصية حديثة <span class="req">*</span></label>
+          <div class="upload-zone" id="drop2">
+            <input type="file" id="f-photo" accept="image/*" capture="user" onchange="handleFile('photo',this.files[0])"/>
+            <div class="ico">🤳</div>
+            <div class="lbl">التقط صورة شخصية أو ارفع من المعرض</div>
+            <div class="sub">خلفية بيضاء · وجه واضح · JPEG أو PNG</div>
+          </div>
+          <div class="file-preview" id="prev-photo">
+            <img id="thumb-photo" class="file-thumb" src="" alt=""/>
+            <div>
+              <div class="file-name" id="fname-photo"></div>
+              <div class="file-size" id="fsize-photo"></div>
+            </div>
+            <button class="file-remove" onclick="removeFile('photo')">✕ إزالة</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tips -->
+      <div class="card" style="background:var(--gold-l);border:1px solid var(--gold);">
+        <div class="card-title" style="color:var(--gold-d);">نصائح للصورة الشخصية</div>
+        <ul style="font-size:12px;color:var(--gold-d);line-height:2;padding-right:16px;">
+          <li>خلفية بيضاء أو فاتحة اللون</li>
+          <li>الوجه واضح ومضاء جيداً</li>
+          <li>بدون نظارات أو قبعة</li>
+          <li>النظر مباشرة للكاميرا</li>
+          <li>حجم الوجه يملأ معظم الصورة</li>
+        </ul>
+      </div>
+
+      <div class="nav-btns">
+        <button class="nav-btn prev" onclick="goStep(2)">→ السابق</button>
+        <button class="nav-btn next" onclick="goStep(4)">مراجعة ←</button>
+      </div>
+    </div>
+
+    <!-- SCREEN 4: المراجعة -->
+    <div class="screen" id="sc4">
+      <div class="card">
+        <div class="card-title">مراجعة البيانات قبل الإرسال</div>
+        <div id="review-content"></div>
+      </div>
+
+      <div class="card" style="background:var(--blue-p);border:1px solid #c5d5e8;">
+        <div style="font-size:13px;color:var(--blue);line-height:1.8;">
+          ✅ بتقديم هذا الطلب تؤكد أن جميع البيانات صحيحة ودقيقة.<br/>
+          📞 سيتم التواصل معك على رقم الجوال المدخل لإعلامك بموعد استلام الجواز.
+        </div>
+      </div>
+
+      <div class="nav-btns">
+        <button class="nav-btn prev" onclick="goStep(3)">→ السابق</button>
+        <button class="nav-btn submit" id="submit-btn" onclick="submitForm()">📤 تقديم الطلب</button>
+      </div>
+    </div>
+
+    <!-- SCREEN 5: Success -->
+    <div class="screen" id="sc5">
+      <div class="success-card">
+        <div class="success-icon">✅</div>
+        <h2>تم استلام طلبك بنجاح!</h2>
+        <p>سيتم مراجعة طلبك من قِبل إدارة الجالية<br/>والتواصل معك على رقم جوالك قريباً</p>
+        <div class="ref-num" id="ref-num">—</div>
+        <p style="font-size:12px;opacity:.7;">احتفظ برقم الطلب للمتابعة</p>
+        <div class="success-btns">
+          <button class="suc-btn primary" onclick="newRequest()">📋 طلب جديد</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     ADMIN LOGIN
+═══════════════════════════════════════ -->
+<div id="admin-page">
+  <div class="admin-login" id="admin-login">
+    <div class="login-hero">
+      <div class="flag">🛂</div>
+      <h1>إدارة طلبات الجوازات</h1>
+      <p>لوحة التحكم — خاص بالمسؤولين</p>
+    </div>
+    <div class="login-box">
+      <br/>
+      <label style="font-size:13px;color:var(--muted);font-weight:700;display:block;margin-bottom:5px;">كلمة المرور</label>
+      <div style="position:relative;margin-bottom:14px;">
+        <input class="linput" id="adm-pw" type="password" placeholder="••••••••" style="margin-bottom:0;" onkeydown="if(event.key==='Enter')admLogin()"/>
+        <button onclick="var i=document.getElementById('adm-pw');i.type=i.type==='password'?'text':'password';" type="button"
+          style="position:absolute;left:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;color:var(--muted);">👁</button>
+      </div>
+      <div class="lerr" id="adm-err">كلمة المرور غير صحيحة</div>
+      <button class="lbtn" onclick="admLogin()">دخول للوحة الإدارة</button>
+      <br/><br/>
+      <button class="lbtn" style="background:var(--surf);color:var(--muted);border:1px solid var(--border);box-shadow:none;" onclick="showRegPage()">← العودة للتسجيل</button>
+    </div>
+  </div>
+
+  <!-- ADMIN APP -->
+  <div id="admin-app">
+    <div class="adm-hdr">
+      <div style="font-size:24px;">🛂</div>
+      <div><h1>لوحة إدارة طلبات الجوازات</h1><p>الجالية السودانية بجازان</p></div>
+      <div style="margin-right:auto;display:flex;align-items:center;gap:10px;">
+        <div class="adm-clock" id="adm-clock">--:--:--</div>
+        <span class="adm-sync" id="adm-sync">🔄</span>
+        <button class="fbtn o" onclick="loadApplications()" style="font-size:11px;padding:6px 12px;">🔄</button>
+        <button class="logout-btn" onclick="admLogout()">خروج</button>
+      </div>
+    </div>
+    <div class="tab-bar">
+      <button class="tab-btn active" id="tb-overview" onclick="admTab('overview')">📊 نظرة عامة</button>
+      <button class="tab-btn" id="tb-apps" onclick="admTab('apps')">📋 الطلبات</button>
+    </div>
+    <div class="adm-screens">
+
+      <!-- OVERVIEW -->
+      <div class="adm-screen active" id="asc-overview">
+        <div class="kpi-grid">
+          <div class="kpi gold"><div class="kpi-icon">📋</div><div class="kpi-val" id="k-total">0</div><div class="kpi-lbl">إجمالي الطلبات</div></div>
+          <div class="kpi orange"><div class="kpi-icon">⏳</div><div class="kpi-val" id="k-pending">0</div><div class="kpi-lbl">بانتظار المراجعة</div></div>
+          <div class="kpi blue"><div class="kpi-icon">⚙️</div><div class="kpi-val" id="k-processing">0</div><div class="kpi-lbl">قيد المعالجة</div></div>
+          <div class="kpi"><div class="kpi-icon">✅</div><div class="kpi-val" id="k-ready">0</div><div class="kpi-lbl">جاهزة للاستلام</div></div>
+        </div>
+        <div class="charts-row">
+          <div class="card"><div class="card-title">الطلبات حسب النوع</div><canvas id="ch-type" height="220"></canvas></div>
+          <div class="card"><div class="card-title">الطلبات حسب المنطقة</div><canvas id="ch-area" height="220"></canvas></div>
+        </div>
+        <!-- Recent -->
+        <div class="card" style="padding:0;overflow:hidden;">
+          <div style="padding:12px 16px;background:var(--gd);display:flex;align-items:center;gap:8px;">
+            <span style="color:var(--gold);font-size:13px;font-weight:800;">آخر الطلبات</span>
+          </div>
+          <div id="recent-list"><div style="padding:20px;text-align:center;color:var(--muted);">جاري التحميل...</div></div>
+        </div>
+      </div>
+
+      <!-- APPLICATIONS -->
+      <div class="adm-screen" id="asc-apps">
+        <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+            <div class="card-title" style="margin:0;">بحث وفلترة الطلبات</div>
+            <span id="apps-count" style="font-size:12px;font-weight:700;color:var(--muted);"></span>
+          </div>
+          <div class="sbar">
+            <input class="sbox" id="s-q" type="search" placeholder="🔍 الاسم / رقم الجوال / الرقم الوطني / رقم الطلب..." oninput="renderApps()"/>
+            <select class="sfsel" id="s-type" onchange="renderApps()">
+              <option value="">كل الأنواع</option>
+              <option value="renew">تجديد</option>
+              <option value="new">إصدار جديد</option>
+            </select>
+            <select class="sfsel" id="s-status" onchange="renderApps()">
+              <option value="">كل الحالات</option>
+              <option value="pending">بانتظار المراجعة</option>
+              <option value="processing">قيد المعالجة</option>
+              <option value="ready">جاهز للاستلام</option>
+              <option value="delivered">تم التسليم</option>
+              <option value="cancelled">ملغي</option>
+            </select>
+            <select class="sfsel" id="s-area" onchange="renderApps()">
+              <option value="">كل المناطق</option>
+            </select>
+          </div>
+        </div>
+        <div class="card" style="padding:0;overflow:hidden;">
+          <div class="twrap">
+            <table class="tbl">
+              <thead><tr>
+                <th onclick="sortApps('ref_num')">رقم الطلب ↕</th>
+                <th onclick="sortApps('full_name')">الاسم ↕</th>
+                <th>الجوال</th>
+                <th>الرقم الوطني</th>
+                <th onclick="sortApps('request_type')">النوع ↕</th>
+                <th onclick="sortApps('area')">المنطقة ↕</th>
+                <th onclick="sortApps('status')">الحالة ↕</th>
+                <th onclick="sortApps('created_at')">التاريخ ↕</th>
+                <th>الملفات</th>
+                <th>إجراء</th>
+              </tr></thead>
+              <tbody id="apps-tbody"></tbody>
+            </table>
+          </div>
+          <div class="pag" id="apps-pag"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- DETAIL MODAL -->
+<div class="modal-bg" id="m-detail">
+  <div class="modal">
+    <div class="mhandle"></div>
+    <button class="mclose" onclick="closeModal()">✕ إغلاق</button>
+    <h3 id="modal-title" style="font-size:16px;font-weight:800;color:var(--gd);margin-bottom:14px;">تفاصيل الطلب</h3>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+/* ══ SUPABASE ══ */
+var SB_URL = 'https://fivgglsoygkonqnsbzvl.supabase.co';
+var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpdmdnbHNveWdrb25xbnNienZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3NzQ1NjQsImV4cCI6MjA5NDM1MDU2NH0.hu5ExAyeMfy8JivJdiuY0CstI1FZc6lZK_D76DebAZE';
+var ADMIN_PW = 'Passport@2026';
+var sb = null;
+
+/* ══ STATE ══ */
+var curStep = 1;
+var formData = {type:'', name:'', nid:'', phone:'', dob:'', gender:'', area:'', passport:'', notes:''};
+var files = {passport:null, photo:null};
+var fileData = {passport:null, photo:null};
+var allApps = [], filteredApps = [], appPage = 1, appPerPage = 20;
+var appSortCol = 'created_at', appSortDir = -1;
+var charts = {};
+
+window.addEventListener('load', function(){
+  try{ sb = window.supabase.createClient(SB_URL, SB_KEY, {auth:{persistSession:false}}); }catch(e){}
+  setInterval(function(){
+    var el=document.getElementById('adm-clock');
+    if(el) el.textContent=new Date().toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  },1000);
+});
+
+/* ══ REGISTER: TYPE ══ */
+function selType(type){
+  formData.type=type;
+  document.getElementById('tb-renew').classList.toggle('active', type==='renew');
+  document.getElementById('tb-new').classList.toggle('active', type==='new');
+  document.getElementById('passport-num-row').style.display = type==='renew' ? 'block' : 'none';
+}
+
+/* ══ STEPS ══ */
+function goStep(n){
+  if(n>curStep && !validateStep(curStep)) return;
+  curStep=n;
+  document.querySelectorAll('.screen').forEach(function(s,i){
+    s.classList.toggle('active', i===n-1);
+  });
+  for(var i=1;i<=4;i++){
+    var st=document.getElementById('st'+i);
+    if(st){
+      st.classList.toggle('active', i===n);
+      st.classList.toggle('done', i<n);
+    }
+  }
+  if(n===4) buildReview();
+}
+
+function validateStep(n){
+  if(n===1){
+    if(!formData.type){showToast('اختر نوع الطلب','err');return false;}
+  }
+  if(n===2){
+    var name=document.getElementById('r-name').value.trim();
+    var nid=document.getElementById('r-nid').value.trim();
+    var phone=document.getElementById('r-phone').value.trim();
+    var dob=document.getElementById('r-dob').value;
+    var gender=document.getElementById('r-gender').value;
+    var area=document.getElementById('r-area').value;
+    if(!name||name.split(' ').length<3){showToast('أدخل الاسم الرباعي كاملاً','err');document.getElementById('r-name').classList.add('err');return false;}
+    document.getElementById('r-name').classList.remove('err');
+    if(nid.length!==11){showToast('الرقم الوطني 11 رقم','err');return false;}
+    if(phone.length!==10||!phone.startsWith('05')){showToast('رقم الجوال غير صحيح','err');return false;}
+    if(!dob){showToast('أدخل تاريخ الميلاد','err');return false;}
+    if(!gender){showToast('اختر الجنس','err');return false;}
+    if(!area){showToast('اختر منطقة السكن','err');return false;}
+    formData.name=name; formData.nid=nid; formData.phone=phone;
+    formData.dob=dob; formData.gender=gender; formData.area=area;
+    formData.passport=document.getElementById('r-passport').value.trim();
+    formData.notes=document.getElementById('r-notes').value.trim();
+  }
+  if(n===3){
+    if(!fileData.passport){showToast('أرفق صورة الجواز أو الهوية','err');return false;}
+    if(!fileData.photo){showToast('أرفق صورة شخصية','err');return false;}
+  }
+  return true;
+}
+
+/* ══ FILES ══ */
+function handleFile(key, file){
+  if(!file) return;
+  if(file.size > 5*1024*1024){showToast('الملف أكبر من 5MB','err');return;}
+  files[key]=file;
+  var reader=new FileReader();
+  reader.onload=function(e){
+    fileData[key]=e.target.result;
+    var prev=document.getElementById('prev-'+key);
+    var thumb=document.getElementById('thumb-'+key);
+    var fname=document.getElementById('fname-'+key);
+    var fsize=document.getElementById('fsize-'+key);
+    if(prev) prev.classList.add('show');
+    if(thumb) thumb.src=file.type.startsWith('image/')?fileData[key]:'';
+    if(fname) fname.textContent=file.name;
+    if(fsize) fsize.textContent=(file.size/1024).toFixed(0)+' KB';
+  };
+  reader.readAsDataURL(file);
+}
+function removeFile(key){
+  files[key]=null; fileData[key]=null;
+  document.getElementById('prev-'+key).classList.remove('show');
+  document.getElementById('f-'+key).value='';
+}
+
+/* ══ REVIEW ══ */
+function buildReview(){
+  var typeLabel = formData.type==='renew'?'تجديد جواز':'إصدار جواز جديد';
+  var genderLabel = formData.gender==='male'?'ذكر':'أنثى';
+  var rows=[
+    ['نوع الطلب', '🔄 '+typeLabel],
+    ['الاسم الكامل', formData.name],
+    ['الرقم الوطني', formData.nid],
+    ['رقم الجوال', formData.phone],
+    ['تاريخ الميلاد', formData.dob],
+    ['الجنس', genderLabel],
+    ['منطقة السكن', formData.area],
+  ];
+  if(formData.passport) rows.push(['رقم الجواز الحالي', formData.passport]);
+  if(formData.notes) rows.push(['ملاحظات', formData.notes]);
+  rows.push(['صورة الجواز', '✅ مرفقة']);
+  rows.push(['الصورة الشخصية', '✅ مرفقة']);
+  document.getElementById('review-content').innerHTML=rows.map(function(r){
+    return '<div class="detail-row"><span class="detail-lbl">'+r[0]+'</span><span class="detail-val">'+r[1]+'</span></div>';
+  }).join('');
+}
+
+/* ══ SUBMIT ══ */
+async function submitForm(){
+  var btn=document.getElementById('submit-btn');
+  btn.disabled=true; btn.innerHTML='⏳ جاري الإرسال...<span class="spin"></span>';
+  var refNum='JZ-'+Date.now().toString().slice(-6);
+  var rec={
+    id: refNum+'_'+Math.random().toString(36).slice(2,6),
+    ref_num: refNum,
+    request_type: formData.type,
+    full_name: formData.name,
+    national_id: formData.nid,
+    phone: formData.phone,
+    dob: formData.dob,
+    gender: formData.gender,
+    area: formData.area,
+    current_passport: formData.passport||null,
+    notes: formData.notes||null,
+    passport_doc: fileData.passport,
+    personal_photo: fileData.photo,
+    status: 'pending',
+    created_at: new Date().toISOString()
+  };
+  try{
+    if(sb){
+      var res=await sb.from('passport_applications').insert(rec);
+      if(res.error) throw res.error;
+    }
+    document.getElementById('ref-num').textContent=refNum;
+    goStepSuccess();
+    showToast('✅ تم إرسال طلبك بنجاح','ok');
+  }catch(e){
+    showToast('خطأ في الإرسال: '+(e.message||'حاول مرة أخرى'),'err');
+    btn.disabled=false; btn.innerHTML='📤 تقديم الطلب';
+  }
+}
+
+function goStepSuccess(){
+  document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});
+  document.getElementById('sc5').classList.add('active');
+  for(var i=1;i<=4;i++){var st=document.getElementById('st'+i);if(st){st.classList.remove('active');st.classList.add('done');}}
+}
+
+function newRequest(){
+  formData={type:'',name:'',nid:'',phone:'',dob:'',gender:'',area:'',passport:'',notes:''};
+  files={passport:null,photo:null}; fileData={passport:null,photo:null};
+  ['r-name','r-nid','r-phone','r-dob','r-notes','r-passport'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+  ['r-gender','r-area'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+  ['passport','photo'].forEach(function(k){removeFile(k);});
+  document.getElementById('tb-renew').classList.remove('active');
+  document.getElementById('tb-new').classList.remove('active');
+  curStep=1;
+  goStep(1);
+}
+
+/* ══ ADMIN ══ */
+function showAdminLogin(){
+  document.getElementById('reg-page').style.display='none';
+  document.getElementById('admin-page').style.display='block';
+}
+function showRegPage(){
+  document.getElementById('admin-page').style.display='none';
+  document.getElementById('reg-page').style.display='block';
+}
+
+function admLogin(){
+  var pw=document.getElementById('adm-pw').value;
+  if(pw!==ADMIN_PW){document.getElementById('adm-err').classList.add('show');return;}
+  document.getElementById('adm-err').classList.remove('show');
+  document.getElementById('admin-login').style.display='none';
+  document.getElementById('admin-app').classList.add('show');
+  loadApplications();
+  initAdmRealtime();
+}
+function admLogout(){
+  document.getElementById('admin-app').classList.remove('show');
+  document.getElementById('admin-login').style.display='flex';
+  document.getElementById('adm-pw').value='';
+}
+
+/* ══ LOAD APPS ══ */
+async function loadApplications(){
+  setSyncBadge('loading');
+  try{
+    var res=await sb.from('passport_applications').select('*').order('created_at',{ascending:false});
+    if(!res.error){ allApps=res.data||[]; setSyncBadge('ok',allApps.length); }
+    else throw res.error;
+  }catch(e){ setSyncBadge('err'); showToast('خطأ في الاتصال','err'); }
+  renderOverview(); renderApps(); buildAreaFilter();
+}
+
+function setSyncBadge(st,count){
+  var el=document.getElementById('adm-sync'); if(!el) return;
+  if(st==='ok'){el.style.background='rgba(46,107,79,.5)';el.textContent='🟢 '+( count||0)+' طلب';}
+  else if(st==='err'){el.style.background='rgba(192,57,43,.5)';el.textContent='🔴 خطأ';}
+  else{el.style.background='rgba(201,168,76,.3)';el.textContent='🔄 ...';}
+}
+
+function initAdmRealtime(){
+  try{
+    sb.channel('passport-live')
+      .on('postgres_changes',{event:'INSERT',schema:'public',table:'passport_applications'},function(p){
+        allApps.unshift(p.new);
+        renderOverview(); renderApps(); buildAreaFilter();
+        showToast('🔔 طلب جديد: '+p.new.full_name+' — '+p.new.area,'ok');
+        setSyncBadge('ok',allApps.length);
+      })
+      .on('postgres_changes',{event:'UPDATE',schema:'public',table:'passport_applications'},function(p){
+        var idx=allApps.findIndex(function(a){return a.id===p.new.id;});
+        if(idx>=0) allApps[idx]=p.new;
+        renderOverview(); renderApps();
+      })
+      .subscribe();
+  }catch(e){}
+}
+
+/* ══ OVERVIEW ══ */
+function renderOverview(){
+  var total=allApps.length;
+  var pending=allApps.filter(function(a){return a.status==='pending';}).length;
+  var processing=allApps.filter(function(a){return a.status==='processing';}).length;
+  var ready=allApps.filter(function(a){return a.status==='ready';}).length;
+  animNum('k-total',total); animNum('k-pending',pending);
+  animNum('k-processing',processing); animNum('k-ready',ready);
+  buildCharts();
+  renderRecentList();
+}
+
+function buildCharts(){
+  Object.values(charts).forEach(function(c){try{c.destroy();}catch(e){}});charts={};
+  // Type chart
+  var renew=allApps.filter(function(a){return a.request_type==='renew';}).length;
+  var newP=allApps.filter(function(a){return a.request_type==='new';}).length;
+  var c1=document.getElementById('ch-type');
+  if(c1) charts.type=new Chart(c1,{type:'doughnut',data:{
+    labels:['تجديد','إصدار جديد'],
+    datasets:[{data:[renew,newP],backgroundColor:['#2e6b4f','#1a5fa8'],borderWidth:2}]
+  },options:{responsive:true,cutout:'60%',plugins:{legend:{position:'bottom',labels:{font:{family:'Tajawal'}}}}}});
+  // Area chart
+  var areaMap={};
+  allApps.forEach(function(a){var ar=a.area||'غير محدد';areaMap[ar]=(areaMap[ar]||0)+1;});
+  var areas=Object.keys(areaMap).sort(function(a,b){return areaMap[b]-areaMap[a];}).slice(0,8);
+  var c2=document.getElementById('ch-area');
+  if(c2) charts.area=new Chart(c2,{type:'bar',data:{
+    labels:areas,
+    datasets:[{label:'عدد الطلبات',data:areas.map(function(a){return areaMap[a];}),backgroundColor:'#c9a84c',borderRadius:6}]
+  },options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{family:'Tajawal'}}},y:{ticks:{font:{family:'Tajawal'}}}}}});
+}
+
+function renderRecentList(){
+  var el=document.getElementById('recent-list'); if(!el) return;
+  var rec=allApps.slice(0,8);
+  if(!rec.length){el.innerHTML='<div style="padding:20px;text-align:center;color:var(--muted);">لا توجد طلبات</div>';return;}
+  var stMap={pending:{lbl:'بانتظار المراجعة',cls:'b-orange'},processing:{lbl:'قيد المعالجة',cls:'b-blue'},ready:{lbl:'جاهز',cls:'b-green'},delivered:{lbl:'تم التسليم',cls:'b-gold'},cancelled:{lbl:'ملغي',cls:'b-red'}};
+  el.innerHTML=rec.map(function(a){
+    var sm=stMap[a.status]||{lbl:a.status,cls:'b-gold'};
+    var typeL=a.request_type==='renew'?'🔄 تجديد':'✨ جديد';
+    return '<div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;">'
+      +'<div style="background:var(--gp);border-radius:8px;padding:3px 8px;font-size:10px;font-weight:800;color:var(--gm);flex-shrink:0;">'+a.ref_num+'</div>'
+      +'<div style="flex:1;min-width:0;">'
+      +'<div style="font-size:13px;font-weight:700;">'+a.full_name+'</div>'
+      +'<div style="font-size:11px;color:var(--muted);">'+a.area+' · '+typeL+'</div></div>'
+      +'<span class="badge '+sm.cls+'">'+sm.lbl+'</span>'
+      +'<button class="ibtn b" onclick="showDetail(\''+a.id+'\')">تفاصيل</button>'
+      +'</div>';
+  }).join('');
+}
+
+/* ══ APPS TABLE ══ */
+function buildAreaFilter(){
+  var sel=document.getElementById('s-area'); if(!sel) return;
+  while(sel.options.length>1) sel.remove(1);
+  var areas=[...new Set(allApps.map(function(a){return a.area||'';}))].filter(Boolean).sort();
+  areas.forEach(function(ar){var o=document.createElement('option');o.value=ar;o.textContent=ar;sel.appendChild(o);});
+}
+
+function renderApps(){
+  var q=(document.getElementById('s-q').value||'').toLowerCase();
+  var type=document.getElementById('s-type').value;
+  var status=document.getElementById('s-status').value;
+  var area=document.getElementById('s-area').value;
+  filteredApps=allApps.filter(function(a){
+    if(q&&!(a.full_name||'').toLowerCase().includes(q)&&!(a.phone||'').includes(q)&&!(a.national_id||'').includes(q)&&!(a.ref_num||'').toLowerCase().includes(q)) return false;
+    if(type&&a.request_type!==type) return false;
+    if(status&&a.status!==status) return false;
+    if(area&&a.area!==area) return false;
+    return true;
+  });
+  filteredApps.sort(function(a,b){
+    var va=a[appSortCol]||'',vb=b[appSortCol]||'';
+    return String(va).localeCompare(String(vb),'ar')*appSortDir;
+  });
+  document.getElementById('apps-count').textContent=filteredApps.length+' طلب';
+  appPage=1; renderAppsTable();
+}
+
+function renderAppsTable(){
+  var start=(appPage-1)*appPerPage;
+  var page=filteredApps.slice(start,start+appPerPage);
+  var tbody=document.getElementById('apps-tbody'); if(!tbody) return;
+  var stMap={pending:{lbl:'بانتظار',cls:'b-orange'},processing:{lbl:'قيد المعالجة',cls:'b-blue'},ready:{lbl:'جاهز',cls:'b-green'},delivered:{lbl:'تم التسليم',cls:'b-gold'},cancelled:{lbl:'ملغي',cls:'b-red'}};
+  if(!page.length){tbody.innerHTML='<tr><td colspan="10" style="text-align:center;padding:28px;color:var(--muted);">لا توجد نتائج</td></tr>';return;}
+  tbody.innerHTML=page.map(function(a){
+    var sm=stMap[a.status]||{lbl:a.status,cls:'b-gold'};
+    var typeL=a.request_type==='renew'?'🔄 تجديد':'✨ جديد';
+    var dateStr=(a.created_at||'').slice(0,10);
+    var hasFiles=(a.passport_doc||a.personal_photo)?'✅':'❌';
+    return '<tr>'
+      +'<td style="font-size:10px;font-weight:700;color:var(--gm);">'+a.ref_num+'</td>'
+      +'<td style="font-weight:600;">'+a.full_name+'</td>'
+      +'<td style="font-size:11px;direction:ltr;text-align:right;">'+a.phone+'</td>'
+      +'<td style="font-size:11px;">'+a.national_id+'</td>'
+      +'<td>'+typeL+'</td>'
+      +'<td style="font-size:11px;">'+a.area+'</td>'
+      +'<td><span class="badge '+sm.cls+'">'+sm.lbl+'</span></td>'
+      +'<td style="font-size:11px;color:var(--muted);">'+dateStr+'</td>'
+      +'<td style="text-align:center;">'+hasFiles+'</td>'
+      +'<td><button class="ibtn b" onclick="showDetail(\''+a.id+'\')">تفاصيل</button></td>'
+      +'</tr>';
+  }).join('');
+  var maxPage=Math.max(1,Math.ceil(filteredApps.length/appPerPage));
+  var pag=document.getElementById('apps-pag');
+  pag.innerHTML='<button class="pbtn" onclick="goAppPage('+(appPage-1)+')" '+(appPage<=1?'disabled':'')+'>→ السابق</button>'
+    +'<span style="font-size:11px;color:var(--muted);">الصفحة '+appPage+' من '+maxPage+'</span>'
+    +'<button class="pbtn" onclick="goAppPage('+(appPage+1)+')" '+(appPage>=maxPage?'disabled':'')+'>التالي ←</button>'
+    +'<span style="font-size:11px;color:var(--muted);margin-right:auto;">'+filteredApps.length+' طلب</span>';
+}
+function goAppPage(p){var max=Math.max(1,Math.ceil(filteredApps.length/appPerPage));appPage=Math.max(1,Math.min(max,p));renderAppsTable();}
+function sortApps(col){if(appSortCol===col)appSortDir*=-1;else{appSortCol=col;appSortDir=1;}renderApps();}
+
+/* ══ DETAIL MODAL ══ */
+function showDetail(id){
+  var a=allApps.find(function(x){return x.id===id;}); if(!a) return;
+  var stMap={pending:{lbl:'بانتظار المراجعة',cls:'b-orange'},processing:{lbl:'قيد المعالجة',cls:'b-blue'},ready:{lbl:'جاهز للاستلام',cls:'b-green'},delivered:{lbl:'تم التسليم',cls:'b-gold'},cancelled:{lbl:'ملغي',cls:'b-red'}};
+  var sm=stMap[a.status]||{lbl:a.status,cls:'b-gold'};
+  var typeL=a.request_type==='renew'?'🔄 تجديد جواز':'✨ إصدار جواز جديد';
+  var genderL=a.gender==='male'?'ذكر':'أنثى';
+  document.getElementById('modal-title').textContent='طلب '+a.ref_num;
+  document.getElementById('modal-body').innerHTML=
+    '<div style="margin-bottom:10px;"><span class="badge '+sm.cls+'" style="font-size:12px;padding:4px 14px;">'+sm.lbl+'</span></div>'
+    +'<div class="detail-row"><span class="detail-lbl">نوع الطلب</span><span class="detail-val">'+typeL+'</span></div>'
+    +'<div class="detail-row"><span class="detail-lbl">الاسم الكامل</span><span class="detail-val">'+a.full_name+'</span></div>'
+    +'<div class="detail-row"><span class="detail-lbl">الرقم الوطني</span><span class="detail-val" style="direction:ltr;">'+a.national_id+'</span></div>'
+    +'<div class="detail-row"><span class="detail-lbl">الجوال</span><span class="detail-val" style="direction:ltr;">'+a.phone+'</span></div>'
+    +'<div class="detail-row"><span class="detail-lbl">تاريخ الميلاد</span><span class="detail-val">'+a.dob+'</span></div>'
+    +'<div class="detail-row"><span class="detail-lbl">الجنس</span><span class="detail-val">'+genderL+'</span></div>'
+    +'<div class="detail-row"><span class="detail-lbl">منطقة السكن</span><span class="detail-val">'+a.area+'</span></div>'
+    +(a.current_passport?'<div class="detail-row"><span class="detail-lbl">رقم الجواز</span><span class="detail-val" style="direction:ltr;">'+a.current_passport+'</span></div>':'')
+    +(a.notes?'<div class="detail-row"><span class="detail-lbl">ملاحظات</span><span class="detail-val">'+a.notes+'</span></div>':'')
+    +'<div class="detail-row"><span class="detail-lbl">تاريخ التقديم</span><span class="detail-val">'+a.created_at.slice(0,16).replace('T',' ')+'</span></div>'
+    +(a.personal_photo?'<div style="margin-top:10px;"><div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px;">الصورة الشخصية</div><img src="'+a.personal_photo+'" class="passport-img"/></div>':'')
+    +(a.passport_doc?'<div style="margin-top:10px;"><div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px;">صورة الجواز / الهوية</div><img src="'+a.passport_doc+'" class="passport-img"/></div>':'')
+    +'<div style="font-size:12px;font-weight:800;color:var(--gd);margin:14px 0 8px;">تحديث الحالة</div>'
+    +'<div class="status-btns">'
+    +'<button class="sbtn processing" onclick="updateStatus(\''+a.id+'\',\'processing\')">⚙️ قيد المعالجة</button>'
+    +'<button class="sbtn ready" onclick="updateStatus(\''+a.id+'\',\'ready\')">✅ جاهز</button>'
+    +'<button class="sbtn delivered" onclick="updateStatus(\''+a.id+'\',\'delivered\')">📦 تم التسليم</button>'
+    +'<button class="sbtn cancelled" onclick="updateStatus(\''+a.id+'\',\'cancelled\')">❌ إلغاء</button>'
+    +'</div>';
+  document.getElementById('m-detail').classList.add('show');
+}
+
+async function updateStatus(id, status){
+  try{
+    var res=await sb.from('passport_applications').update({status:status,updated_at:new Date().toISOString()}).eq('id',id);
+    if(res.error) throw res.error;
+    var idx=allApps.findIndex(function(a){return a.id===id;});
+    if(idx>=0) allApps[idx].status=status;
+    closeModal();
+    renderOverview(); renderApps();
+    var stLabels={processing:'قيد المعالجة',ready:'جاهز للاستلام',delivered:'تم التسليم',cancelled:'ملغي'};
+    showToast('✅ تم تحديث الحالة إلى: '+(stLabels[status]||status),'ok');
+  }catch(e){ showToast('خطأ في التحديث','err'); }
+}
+
+function closeModal(){document.getElementById('m-detail').classList.remove('show');}
+document.getElementById('m-detail').addEventListener('click',function(e){if(e.target===this)closeModal();});
+
+/* ══ TABS ══ */
+function admTab(t){
+  document.querySelectorAll('.adm-screen').forEach(function(s){s.classList.remove('active');});
+  document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active');});
+  var sc=document.getElementById('asc-'+t);if(sc)sc.classList.add('active');
+  var tb=document.getElementById('tb-'+t);if(tb)tb.classList.add('active');
+}
+
+/* ══ HELPERS ══ */
+function animNum(id,val){var el=document.getElementById(id);if(!el)return;var start=0,step=val/40;var t=setInterval(function(){start=Math.min(start+step,val);el.textContent=Math.round(start).toLocaleString('ar-SA');if(start>=val)clearInterval(t);},20);}
+function showToast(msg,type){var t=document.getElementById('toast');t.textContent=msg;t.className='toast '+(type||'ok')+' show';setTimeout(function(){t.classList.remove('show');},3500);}
+</script>
+</body>
+</html>
