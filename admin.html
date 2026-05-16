@@ -1,0 +1,1567 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>لوحة إدارة الجوازات — الجالية السودانية بجازان</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+
+@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap');
+:root{
+  --gd:#0f2419;--gm:#1a3d2b;--gl:#2e6b4f;--gp:#e8f5ee;--gpp:#c8e6d4;
+  --gold:#c9a84c;--gold-l:#f5e9c8;--gold-d:#8a6010;
+  --blue:#1a5fa8;--blue-p:#e8f0fb;
+  --red:#c0392b;--red-p:#fdf0ee;
+  --orange:#e67e22;--orange-p:#fef5ec;
+  --ink:#1c2a22;--muted:#6b7c74;--border:#d4e0d9;--surf:#f0f7f3;--white:#fff;
+  --r:12px;--r-sm:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Tajawal',Arial,sans-serif;background:var(--surf);color:var(--ink);min-height:100vh;}
+button,input,select{font-family:'Tajawal',Arial,sans-serif;}
+
+/* TOAST */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);
+  padding:10px 22px;border-radius:30px;font-size:13px;font-weight:700;
+  opacity:0;transition:all .3s;z-index:9999;pointer-events:none;
+  box-shadow:0 4px 20px rgba(0,0,0,.3);white-space:nowrap;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.ok{background:var(--gl);color:#fff;}
+.toast.err{background:var(--red);color:#fff;}
+.toast.warn{background:var(--gold-d);color:#fff;}
+
+/* ADMIN LAYOUT */
+.app{display:flex;flex-direction:column;height:100vh;overflow:hidden;}
+
+/* HEADER */
+.hdr{background:linear-gradient(135deg,var(--gd),var(--gm));padding:0 16px;
+  height:52px;display:flex;align-items:center;gap:10px;flex-shrink:0;
+  border-bottom:2px solid var(--gold);}
+.hdr-logo{font-size:20px;}
+.hdr-brand h1{color:#fff;font-size:13px;font-weight:900;}
+.hdr-brand p{color:var(--gold);font-size:9px;}
+.hdr-right{margin-right:auto;display:flex;gap:6px;align-items:center;}
+.demo-badge{background:var(--orange);color:#fff;padding:3px 10px;
+  border-radius:20px;font-size:10px;font-weight:800;}
+.sync-dot{width:8px;height:8px;background:#4caf50;border-radius:50%;
+  animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+.hdr-count{font-size:10px;color:rgba(255,255,255,.7);}
+.btn-sm{padding:4px 10px;border-radius:6px;font-size:10px;font-weight:700;
+  cursor:pointer;border:none;font-family:Tajawal,Arial;}
+
+/* TABS */
+.tab-bar{background:#0a1a0f;display:flex;overflow-x:auto;flex-shrink:0;
+  border-bottom:1px solid rgba(201,168,76,.2);scrollbar-width:none;}
+.tab-bar::-webkit-scrollbar{display:none;}
+.tab{padding:0 14px;height:40px;color:rgba(255,255,255,.5);font-size:11px;
+  font-weight:700;cursor:pointer;border-bottom:3px solid transparent;
+  white-space:nowrap;font-family:Tajawal,Arial;background:none;
+  border-top:none;border-left:none;border-right:none;transition:all .2s;
+  display:flex;align-items:center;gap:4px;}
+.tab:hover{color:rgba(255,255,255,.8);}
+.tab.active{color:var(--gold);border-bottom-color:var(--gold);}
+
+/* SCREENS */
+.screens{flex:1;overflow-y:auto;}
+.screen{display:none;padding:14px;max-width:1100px;margin:0 auto;}
+.screen.active{display:block;}
+
+/* KPI */
+.kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;}
+@media(min-width:600px){.kpi-grid{grid-template-columns:repeat(6,1fr);}}
+.kpi{background:var(--white);border-radius:10px;padding:10px 8px;text-align:center;
+  box-shadow:0 1px 6px rgba(0,0,0,.06);border-top:3px solid var(--gl);transition:transform .2s;}
+.kpi:hover{transform:translateY(-2px);}
+.kpi-icon{font-size:18px;margin-bottom:2px;}
+.kpi-val{font-size:20px;font-weight:900;color:var(--gm);line-height:1;}
+.kpi-lbl{font-size:9px;color:var(--muted);margin-top:2px;font-weight:600;}
+.kpi.gold{border-top-color:var(--gold);}.kpi.gold .kpi-val{color:var(--gold-d);}
+.kpi.blue{border-top-color:var(--blue);}.kpi.blue .kpi-val{color:var(--blue);}
+.kpi.orange{border-top-color:var(--orange);}.kpi.orange .kpi-val{color:var(--orange);}
+
+/* CARD */
+.card{background:var(--white);border-radius:12px;padding:14px;margin-bottom:12px;
+  box-shadow:0 2px 8px rgba(0,0,0,.06);}
+.ctitle{font-size:12px;font-weight:800;color:var(--gm);margin-bottom:10px;
+  display:flex;align-items:center;gap:5px;}
+.ctitle::before{content:'';width:3px;height:12px;background:var(--gl);
+  border-radius:2px;display:inline-block;}
+
+/* CHARTS */
+.charts-row{display:grid;grid-template-columns:1fr;gap:10px;margin-bottom:12px;}
+@media(min-width:600px){.charts-row{grid-template-columns:1fr 1fr;}}
+@media(min-width:900px){.charts-row{grid-template-columns:1fr 1fr 1fr;}}
+.chart-wrap{position:relative;height:180px;width:100%;}
+
+/* FILTER BAR */
+.fbar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;align-items:center;}
+.fi{border:1.5px solid var(--border);border-radius:8px;padding:7px 10px;
+  font-size:12px;outline:none;background:var(--white);font-family:Tajawal,Arial;
+  color:var(--ink);transition:border-color .15s;flex:1;min-width:120px;}
+.fi:focus{border-color:var(--gl);}
+.fsel{border:1.5px solid var(--border);border-radius:8px;padding:7px 8px;
+  font-size:11px;outline:none;background:var(--white);font-family:Tajawal,Arial;
+  color:var(--ink);appearance:none;cursor:pointer;}
+.fcnt{font-size:11px;color:var(--muted);font-weight:600;margin-right:auto;}
+.fbtn{padding:7px 12px;border:none;border-radius:8px;font-size:11px;
+  font-weight:700;cursor:pointer;font-family:Tajawal,Arial;transition:all .15s;}
+.fbtn.g{background:var(--gl);color:#fff;}
+.fbtn.b{background:var(--blue);color:#fff;}
+.fbtn.wa{background:#25d366;color:#fff;}
+.fbtn.pr{background:var(--gm);color:#fff;}
+.fbtn.out{background:transparent;border:1.5px solid var(--border);color:var(--muted);}
+
+/* TABLE */
+.twrap{overflow-x:auto;}
+.tbl{width:100%;border-collapse:collapse;font-size:11px;}
+.tbl th{padding:8px 10px;background:#f8fbf9;color:var(--muted);font-weight:700;
+  text-align:right;border-bottom:2px solid #e8f0eb;font-size:10px;
+  cursor:pointer;white-space:nowrap;user-select:none;}
+.tbl th:hover{color:var(--gm);}
+.tbl td{padding:7px 10px;border-bottom:1px solid #f0f7f3;vertical-align:middle;}
+.tbl tr:hover td{background:#f8fbf9;}
+.tbl tr:last-child td{border-bottom:none;}
+
+/* BADGE */
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:10px;
+  font-size:9px;font-weight:700;white-space:nowrap;}
+.bg{background:var(--gp);color:var(--gm);}
+.bb{background:var(--blue-p);color:var(--blue);}
+.bo{background:var(--orange-p);color:var(--orange);}
+.bgold{background:var(--gold-l);color:var(--gold-d);}
+.br{background:var(--red-p);color:var(--red);}
+
+/* FEED */
+.feed-item{padding:10px 14px;border-bottom:1px solid #f0f7f3;
+  display:flex;align-items:center;gap:8px;transition:background .15s;}
+.feed-item:hover{background:#f8fbf9;}
+.feed-item:last-child{border-bottom:none;}
+.feed-ref{background:var(--gp);border-radius:6px;padding:3px 7px;
+  font-size:9px;font-weight:800;color:var(--gl);flex-shrink:0;}
+.feed-name{font-size:12px;font-weight:700;}
+.feed-meta{font-size:10px;color:var(--muted);margin-top:1px;}
+
+/* MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:500;
+  display:none;align-items:flex-end;justify-content:center;}
+.modal-bg.show{display:flex;}
+@media(min-width:600px){.modal-bg{align-items:center;padding:16px;}}
+.modal{background:var(--white);border-radius:16px 16px 0 0;padding:16px 16px 24px;
+  width:100%;max-height:90vh;overflow-y:auto;}
+@media(min-width:600px){.modal{border-radius:16px;max-width:540px;}}
+.mhandle{width:36px;height:4px;background:var(--border);border-radius:2px;
+  margin:0 auto 12px;}
+.mclose{float:left;background:var(--surf);border:none;border-radius:6px;
+  padding:4px 10px;cursor:pointer;font-size:12px;color:var(--muted);
+  font-family:Tajawal,Arial;}
+.det-row{display:flex;justify-content:space-between;padding:6px 0;
+  border-bottom:1px solid var(--border);font-size:12px;}
+.det-row:last-of-type{border-bottom:none;}
+.det-lbl{color:var(--muted);font-size:11px;}
+.det-val{font-weight:700;text-align:left;}
+
+/* STATUS BUTTONS */
+.status-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:12px;}
+.sbtn{padding:9px;border:none;border-radius:8px;font-size:12px;font-weight:800;
+  cursor:pointer;font-family:Tajawal,Arial;transition:all .15s;}
+.sbtn:hover{filter:brightness(1.1);}
+.s-proc{background:var(--blue);color:#fff;}
+.s-ready{background:var(--gl);color:#fff;}
+.s-dlvr{background:var(--gold-d);color:#fff;}
+.s-cncl{background:var(--red);color:#fff;}
+
+/* TABSEET */
+.tab-search{display:flex;gap:8px;align-items:center;}
+.tab-inp{flex:1;border:2px solid var(--border);border-radius:8px;
+  padding:11px 14px;font-size:16px;outline:none;font-family:Tajawal,Arial;
+  direction:rtl;transition:border-color .2s;}
+.tab-inp:focus{border-color:var(--gl);}
+.tab-sbtn{padding:11px 18px;background:var(--gl);color:#fff;border:none;
+  border-radius:8px;font-size:13px;font-weight:800;cursor:pointer;
+  font-family:Tajawal,Arial;flex-shrink:0;}
+
+/* RESULT CARD */
+.res-card{background:var(--white);border:1.5px solid var(--gpp);border-radius:12px;
+  padding:14px;margin-top:12px;}
+.res-hdr{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+.passport-photo{width:90px;height:110px;border-radius:8px;object-fit:cover;
+  border:2px solid var(--border);}
+.action-btns{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;}
+.action-btn{padding:10px 16px;border:none;border-radius:8px;font-size:13px;
+  font-weight:800;cursor:pointer;font-family:Tajawal,Arial;
+  display:flex;align-items:center;gap:5px;}
+.ab-print{background:var(--blue);color:#fff;}
+.ab-approve{background:var(--gl);color:#fff;}
+
+/* MOB LIST */
+.mob-item{padding:10px 14px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;}
+.mob-item:last-child{border-bottom:none;}
+.mob-num{width:28px;height:28px;border-radius:50%;
+  background:linear-gradient(135deg,var(--gl),var(--gm));
+  display:flex;align-items:center;justify-content:center;
+  color:#fff;font-size:11px;font-weight:800;flex-shrink:0;}
+.mob-name{font-size:13px;font-weight:700;}
+.mob-meta{font-size:10px;color:var(--muted);margin-top:1px;}
+.mob-day{background:var(--gp);color:var(--gl);font-size:10px;
+  font-weight:800;padding:2px 8px;border-radius:6px;flex-shrink:0;}
+.mob-btns{display:flex;gap:5px;flex-shrink:0;}
+
+/* WA BUTTON */
+.wa-btn{display:inline-flex;align-items:center;gap:4px;padding:5px 10px;
+  border-radius:7px;background:#25d366;color:#fff;font-size:10px;
+  font-weight:700;border:none;cursor:pointer;font-family:Tajawal,Arial;
+  text-decoration:none;}
+
+/* REPORT */
+.rep-msg{background:#e7f8e9;border:1.5px solid #25d366;border-radius:10px;
+  padding:14px;font-size:12px;line-height:1.9;direction:rtl;
+  white-space:pre-line;margin-bottom:10px;}
+.group-rep{background:#f8fbf9;border:1.5px solid var(--gpp);border-radius:10px;
+  padding:14px;font-size:11px;line-height:2;direction:rtl;
+  white-space:pre-line;font-family:monospace;margin-bottom:10px;}
+
+/* IBTN */
+.ibtn{padding:4px 9px;border:1.5px solid var(--border);border-radius:6px;
+  background:transparent;font-size:10px;cursor:pointer;
+  font-family:Tajawal,Arial;color:var(--blue);}
+.ibtn:hover{background:var(--blue-p);}
+
+/* DAY BADGE */
+.day-label{
+  display:inline-block;padding:3px 9px;border-radius:6px;
+  font-size:10px;font-weight:800;
+}
+
+
+/* ══ REVIEW & LIGHTBOX ══ */
+#review-overlay.show{display:flex !important;}
+#lightbox.show{display:flex !important;}
+#m-det.show{display:flex !important;}
+.rev-section{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:12px;}
+.rev-section-title{color:#c9a84c;font-size:10px;font-weight:800;margin-bottom:8px;letter-spacing:.5px;}
+.rev-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:12px;}
+.rev-row:last-child{border-bottom:none;}
+.rev-lbl{color:rgba(255,255,255,.5);font-size:11px;}
+.rev-val{color:#fff;font-weight:700;text-align:left;max-width:60%;}
+.rev-img-box{background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:8px;text-align:center;cursor:pointer;transition:border-color .2s;margin-bottom:8px;}
+.rev-img-box:hover{border-color:#c9a84c;}
+.rev-img-box img{width:100%;max-height:220px;object-fit:contain;border-radius:6px;}
+.rev-img-lbl{color:rgba(255,255,255,.5);font-size:10px;margin-top:5px;}
+.rev-actions{background:rgba(0,0,0,.3);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px;}
+.rev-accept-btn{padding:12px;background:linear-gradient(135deg,#1D9E75,#0f6e56);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:800;cursor:pointer;font-family:Tajawal,Arial;}
+.rev-reject-section{background:rgba(192,57,43,.15);border:1px solid rgba(192,57,43,.3);border-radius:8px;padding:10px;}
+.rev-reject-title{color:#e74c3c;font-size:11px;font-weight:800;margin-bottom:7px;}
+.rev-reject-reasons{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:8px;}
+.rev-reason-btn{padding:6px 8px;background:rgba(192,57,43,.2);border:1px solid rgba(192,57,43,.3);border-radius:6px;color:#e74c3c;font-size:10px;font-weight:700;cursor:pointer;font-family:Tajawal,Arial;text-align:center;}
+.rev-reason-btn.sel,.rev-reason-btn:hover{background:rgba(192,57,43,.5);border-color:#e74c3c;}
+.rev-notes{width:100%;background:rgba(0,0,0,.3);border:1px solid rgba(192,57,43,.3);border-radius:6px;padding:8px 10px;color:#fff;font-family:Tajawal,Arial;font-size:12px;resize:none;min-height:52px;outline:none;box-sizing:border-box;}
+.rev-reject-btn{width:100%;padding:10px;background:rgba(192,57,43,.8);color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:800;cursor:pointer;font-family:Tajawal,Arial;}
+@media(min-width:700px){#rev-body{grid-template-columns:1fr 1fr !important;}}
+
+</style>
+</head>
+<body>
+<div class="toast" id="toast"></div>
+
+
+<div id="login-screen" style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 20px;background:linear-gradient(160deg,#0a1a10,#1a3d2b);">
+  <div style="text-align:center;margin-bottom:24px;">
+    <div style="width:68px;height:68px;background:#c9a84c;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:30px;margin:0 auto 12px;">🛂</div>
+    <h1 style="color:#fff;font-size:19px;font-weight:900;margin-bottom:3px;">لوحة إدارة الجوازات</h1>
+    <p style="color:rgba(255,255,255,.5);font-size:11px;">الجالية السودانية بجازان</p>
+  </div>
+  <div style="width:100%;max-width:360px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:22px 18px;">
+    <div id="login-err" style="display:none;background:rgba(192,57,43,.2);border:1px solid rgba(192,57,43,.4);border-radius:8px;padding:9px 12px;font-size:12px;color:#e74c3c;text-align:center;margin-bottom:12px;"></div>
+    <div style="margin-bottom:12px;">
+      <label style="display:block;font-size:11px;color:rgba(255,255,255,.6);font-weight:700;margin-bottom:5px;">اسم المستخدم</label>
+      <input id="adm-user" type="text" autocomplete="username" placeholder="username" style="width:100%;background:rgba(0,0,0,.3);border:1.5px solid rgba(255,255,255,.15);border-radius:8px;padding:11px 12px;font-size:15px;color:#fff;outline:none;font-family:Tajawal,Arial;direction:ltr;box-sizing:border-box;" onkeydown="if(event.key==='Enter')document.getElementById('adm-pw').focus()"/>
+    </div>
+    <div style="margin-bottom:18px;">
+      <label style="display:block;font-size:11px;color:rgba(255,255,255,.6);font-weight:700;margin-bottom:5px;">كلمة المرور</label>
+      <div style="position:relative;">
+        <input id="adm-pw" type="password" autocomplete="current-password" placeholder="••••••••" style="width:100%;background:rgba(0,0,0,.3);border:1.5px solid rgba(255,255,255,.15);border-radius:8px;padding:11px 38px 11px 12px;font-size:15px;color:#fff;outline:none;font-family:Tajawal,Arial;direction:ltr;box-sizing:border-box;" onkeydown="if(event.key==='Enter')admLogin()"/>
+        <button onclick="var i=document.getElementById('adm-pw');i.type=i.type==='password'?'text':'password';" type="button" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px;opacity:.5;color:#fff;">👁</button>
+      </div>
+    </div>
+    <button id="login-btn" onclick="admLogin()" style="width:100%;padding:12px;background:linear-gradient(135deg,#1D9E75,#0f6e56);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:800;cursor:pointer;font-family:Tajawal,Arial;">
+      <span id="login-btn-txt">دخول</span>
+    </button>
+  </div>
+  <p style="color:rgba(255,255,255,.2);font-size:10px;margin-top:16px;">للدخول تواصل مع مدير النظام</p>
+</div>
+
+
+
+  <!-- REVIEW OVERLAY -->
+  <div id="review-overlay" style="display:none;position:fixed;inset:0;background:#0a1a10;z-index:800;flex-direction:column;overflow-y:auto;">
+    <div style="background:linear-gradient(135deg,#0a1a10,#1a3d2b);padding:11px 14px;display:flex;align-items:center;gap:10px;flex-shrink:0;border-bottom:2px solid #c9a84c;">
+      <button onclick="closeReview()" style="background:rgba(255,255,255,.1);border:none;color:#fff;border-radius:8px;padding:5px 11px;cursor:pointer;font-family:Tajawal,Arial;font-size:12px;">← رجوع</button>
+      <div style="flex:1;">
+        <div id="rev-title" style="color:#fff;font-size:13px;font-weight:800;"></div>
+        <div id="rev-ref" style="color:#c9a84c;font-size:10px;margin-top:1px;"></div>
+      </div>
+      <div id="rev-status-badge"></div>
+    </div>
+    <div id="rev-body" style="flex:1;padding:12px;max-width:900px;margin:0 auto;width:100%;display:grid;grid-template-columns:1fr;gap:10px;box-sizing:border-box;"></div>
+  </div>
+
+  <!-- LIGHTBOX -->
+  <div id="lightbox" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:900;align-items:center;justify-content:center;padding:14px;" onclick="closeLightbox()">
+    <button onclick="closeLightbox()" style="position:fixed;top:12px;left:12px;background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:50%;width:34px;height:34px;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
+    <img id="lightbox-img" src="" alt="" style="max-width:100%;max-height:90vh;border-radius:10px;object-fit:contain;"/>
+  </div>
+
+  <!-- DETAIL MODAL -->
+  <div id="m-det" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:500;align-items:flex-end;justify-content:center;">
+    <div style="background:#fff;border-radius:14px 14px 0 0;padding:14px 14px 22px;width:100%;max-height:90vh;overflow-y:auto;max-width:520px;">
+      <div style="width:32px;height:4px;background:#d4e0d9;border-radius:2px;margin:0 auto 10px;"></div>
+      <button onclick="closeMod()" style="float:left;background:#f0f7f3;border:none;border-radius:6px;padding:4px 9px;cursor:pointer;font-size:12px;color:#6b7c74;font-family:Tajawal,Arial;">✕</button>
+      <h3 id="det-title" style="font-size:13px;font-weight:800;color:#1a3d2b;margin-bottom:10px;"></h3>
+      <div id="det-body"></div>
+    </div>
+  </div>
+
+
+<div id="admin-app" style="display:none;">
+    <div class="app">
+      <div class="hdr">
+        <div class="hdr-logo">🛂</div>
+        <div class="hdr-brand"><h1>لوحة إدارة الجوازات</h1><p style="color:var(--gold);font-size:9px;">مرحباً <span id="admin-name" style="font-weight:800;"></span></p></div>
+        <div class="hdr-right">
+          <div class="sync-dot"></div>
+          <span class="hdr-count" id="hdr-count">0 طلب</span>
+          <span class="adm-sync" id="adm-sync">⚪</span>
+          <button class="btn-sm" style="background:rgba(201,168,76,.2);border:1px solid var(--gold);color:var(--gold);" onclick="loadApps()">🔄</button>
+          <button class="btn-sm" style="background:rgba(192,57,43,.2);border:1px solid #e74c3c;color:#e74c3c;" onclick="admLogout()">خروج</button>
+        </div>
+      </div>
+      <div class="tab-bar">
+        <button class="tab active" id="tb-ov" onclick="switchTab('ov')">📊 نظرة عامة</button>
+        <button class="tab" id="tb-list" onclick="switchTab('list')">📋 الطلبات</button>
+        <button class="tab" id="tb-tabseet" onclick="switchTab('tabseet')">🔍 التبسيط</button>
+        <button class="tab" id="tb-mob" onclick="switchTab('mob')">✅ المبسّطون</button>
+        <button class="tab" id="tb-rep" onclick="switchTab('rep')">📤 التقارير</button>
+      </div>
+      <div class="screens"><div class="screen active" id="sc-ov">
+      <div class="kpi-grid">
+        <div class="kpi gold"><div class="kpi-icon">📋</div><div class="kpi-val" id="k-tot">0</div><div class="kpi-lbl">إجمالي</div></div>
+        <div class="kpi orange"><div class="kpi-icon">⏳</div><div class="kpi-val" id="k-pend">0</div><div class="kpi-lbl">بانتظار</div></div>
+        <div class="kpi blue"><div class="kpi-icon">⚙️</div><div class="kpi-val" id="k-proc">0</div><div class="kpi-lbl">معالجة</div></div>
+        <div class="kpi"><div class="kpi-icon">✅</div><div class="kpi-val" id="k-rdy">0</div><div class="kpi-lbl">جاهز</div></div>
+        <div class="kpi blue"><div class="kpi-icon">🧑</div><div class="kpi-val" id="k-adu">0</div><div class="kpi-lbl">بالغون</div></div>
+        <div class="kpi" style="border-top-color:var(--gold)"><div class="kpi-icon">👶</div><div class="kpi-val" id="k-chi" style="color:var(--gold-d)">0</div><div class="kpi-lbl">أطفال</div></div>
+      </div>
+      <div class="charts-row">
+        <div class="card"><div class="ctitle">الطلبات حسب النوع</div><div class="chart-wrap"><canvas id="ch-tp"></canvas></div></div>
+        <div class="card"><div class="ctitle">البالغون والأطفال</div><div class="chart-wrap"><canvas id="ch-pt"></canvas></div></div>
+        <div class="card"><div class="ctitle">الطلبات حسب المنطقة</div><div class="chart-wrap"><canvas id="ch-ar"></canvas></div></div>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden;">
+        <div style="padding:10px 14px;background:var(--gm);display:flex;align-items:center;gap:8px;">
+          <span style="color:var(--gold);font-size:12px;font-weight:800;">📋 آخر الطلبات</span>
+          <span class="sync-dot" style="margin-right:auto;"></span>
+        </div>
+        <div id="feed"></div>
+      </div>
+    </div>
+
+    <!-- ══ APPLICATIONS ══ -->
+    <div class="screen" id="sc-list">
+      <div class="card">
+        <div class="fbar">
+          <input class="fi" id="s-q" type="search" placeholder="🔍 اسم / جوال / رقم وطني / رقم الطلب..." oninput="renderList()" style="flex:2;"/>
+          <select class="fsel" id="s-tp" onchange="renderList()">
+            <option value="">كل الأنواع</option>
+            <option value="renew">🔄 تجديد</option>
+            <option value="new">✨ إصدار جديد</option>
+          </select>
+          <select class="fsel" id="s-st" onchange="renderList()">
+            <option value="">كل الحالات</option>
+            <option value="pending">⏳ بانتظار</option>
+            <option value="processing">⚙️ معالجة</option>
+            <option value="tabseet_approved">🔍 تم التبسيط</option>
+            <option value="ready">✅ جاهز</option>
+            <option value="delivered">📦 تم التسليم</option>
+          </select>
+          <select class="fsel" id="s-pt" onchange="renderList()">
+            <option value="">الكل</option>
+            <option value="adult">🧑 بالغون</option>
+            <option value="child">👶 أطفال</option>
+          </select>
+          <select class="fsel" id="s-ar" onchange="renderList()">
+            <option value="">كل المناطق</option>
+          </select>
+          <span class="fcnt" id="list-cnt"></span>
+        </div>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden;">
+        <div class="twrap">
+          <table class="tbl">
+            <thead><tr>
+              <th>رقم الطلب</th><th>الاسم</th><th>الجوال</th>
+              <th>النوع</th><th>المستفيد</th><th>المهنة</th><th>المنطقة</th><th>الحالة</th><th>اليوم</th><th></th>
+            </tr></thead>
+            <tbody id="list-tbody"></tbody>
+          </table>
+        </div>
+        <div class="fbar" style="padding:8px 12px;border-top:1px solid var(--border);" id="list-pag"></div>
+      </div>
+    </div>
+
+    <!-- ══ TABSEET ══ -->
+    <div class="screen" id="sc-tabseet">
+      <div class="card">
+        <div class="ctitle">🔍 صفحة التبسيط</div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.7;">أدخل الرقم الوطني للمواطن للبحث عن طلبه وطباعة ورقة التبسيط وإرسالها للجهات الأمنية.</p>
+        <div class="tab-search">
+          <input class="tab-inp" id="tab-nid" type="text" inputmode="numeric"
+            placeholder="أدخل الرقم الوطني — 11 رقم" maxlength="11"
+            oninput="this.value=this.value.replace(/[^0-9]/g,'')"
+            onkeydown="if(event.key==='Enter')doSearch()"/>
+          <button class="tab-sbtn" onclick="doSearch()">🔍 بحث</button>
+        </div>
+        <div id="tab-result" style="margin-top:10px;"></div>
+      </div>
+      <div class="card" style="background:var(--blue-p);border:1px solid #c5d5e8;">
+        <div style="font-size:12px;color:var(--blue);line-height:1.9;">
+          💡 <strong>كيفية الاستخدام:</strong><br/>
+          ١. اطلب من المواطن الرقم الوطني<br/>
+          ٢. اضغط بحث → اطبع ورقة التبسيط<br/>
+          ③ أرسلها للجهة الأمنية<br/>
+          ④ بعد الموافقة → اضغط "اعتماد التبسيط"
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ MOBASSATEEN ══ -->
+    <div class="screen" id="sc-mob">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+        <div style="font-size:13px;font-weight:800;color:var(--gm);">✅ قائمة المبسّطين — مدعوون للحضور</div>
+        <div style="display:flex;gap:7px;">
+          <button class="fbtn b" onclick="printMobList()">🖨️ طباعة القائمة</button>
+          <button class="fbtn g" onclick="renderMob()">🔄 تحديث</button>
+        </div>
+      </div>
+      <div class="card" style="background:var(--blue-p);border:1px solid #c5d5e8;margin-bottom:12px;">
+        <div style="font-size:12px;color:var(--blue);line-height:1.8;">
+          📋 هؤلاء المواطنون تمت الموافقة على تبسيط طلباتهم. يُرجى التواصل معهم للحضور لسداد الرسوم والتصوير.
+        </div>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden;">
+        <div style="padding:10px 14px;background:var(--gm);display:flex;align-items:center;gap:8px;">
+          <span style="color:var(--gold);font-size:12px;font-weight:800;">المبسّطون</span>
+          <span id="mob-count" style="color:rgba(255,255,255,.6);font-size:10px;margin-right:auto;"></span>
+        </div>
+        <div id="mob-list"></div>
+      </div>
+    </div>
+
+    <!-- ══ REPORTS ══ -->
+    <div class="screen" id="sc-rep">
+          <div class="card" style="border:2px solid rgba(201,168,76,.3);background:rgba(201,168,76,.04);">
+            <div class="ctitle" style="color:#c9a84c;">📅 تفاصيل البعثة</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+              <div><label style="display:block;font-size:10px;color:rgba(255,255,255,.5);font-weight:700;margin-bottom:4px;">المكان / الصالة <span style="color:#e74c3c;">*</span></label>
+                <input id="mission-venue" type="text" placeholder="فندق روتانا جازان" style="width:100%;background:rgba(0,0,0,.3);border:1.5px solid rgba(255,255,255,.15);border-radius:7px;padding:8px 10px;font-size:13px;color:#fff;outline:none;font-family:Tajawal,Arial;box-sizing:border-box;"/></div>
+              <div><label style="display:block;font-size:10px;color:rgba(255,255,255,.5);font-weight:700;margin-bottom:4px;">تاريخ الحضور <span style="color:#e74c3c;">*</span></label>
+                <input id="mission-date" type="date" style="width:100%;background:rgba(0,0,0,.3);border:1.5px solid rgba(255,255,255,.15);border-radius:7px;padding:8px 10px;font-size:13px;color:#fff;outline:none;font-family:Tajawal,Arial;box-sizing:border-box;"/></div>
+              <div><label style="display:block;font-size:10px;color:rgba(255,255,255,.5);font-weight:700;margin-bottom:4px;">وقت الحضور</label>
+                <input id="mission-time" type="time" style="width:100%;background:rgba(0,0,0,.3);border:1.5px solid rgba(255,255,255,.15);border-radius:7px;padding:8px 10px;font-size:13px;color:#fff;outline:none;font-family:Tajawal,Arial;box-sizing:border-box;direction:ltr;"/></div>
+              <div><label style="display:block;font-size:10px;color:rgba(255,255,255,.5);font-weight:700;margin-bottom:4px;">ملاحظات</label>
+                <input id="mission-notes" type="text" placeholder="اختياري" style="width:100%;background:rgba(0,0,0,.3);border:1.5px solid rgba(255,255,255,.15);border-radius:7px;padding:8px 10px;font-size:13px;color:#fff;outline:none;font-family:Tajawal,Arial;box-sizing:border-box;"/></div>
+            </div>
+            <button onclick="saveMissionDetails()" style="width:100%;padding:10px;background:linear-gradient(135deg,#c9a84c,#8a6010);color:#fff;border:none;border-radius:7px;font-size:13px;font-weight:800;cursor:pointer;font-family:Tajawal,Arial;">💾 حفظ وتحديث الرسائل</button>
+          </div>
+          <div class="card">
+            <div class="ctitle">🔽 فلترة المدعوين</div>
+            <div class="fbar">
+              <select class="fsel" id="rep-day" onchange="buildReport()"><option value="">كل الأيام</option><option value="الأحد">الأحد — صحة</option><option value="الاثنين">الاثنين — هندسة</option><option value="الثلاثاء">الثلاثاء — حكومة</option><option value="الأربعاء">الأربعاء — خاص</option><option value="الخميس">الخميس — أخرى</option></select>
+              <select class="fsel" id="rep-job-grp" onchange="buildReport()"><option value="">كل المهن</option><option value="health">🏥 صحة</option><option value="engineering">🏗️ هندسة</option><option value="government">🏛️ حكومة</option><option value="private">🏢 خاص</option><option value="other">📋 أخرى</option></select>
+              <select class="fsel" id="rep-area" onchange="buildReport()"><option value="">كل المناطق</option></select>
+              <select class="fsel" id="rep-status" onchange="buildReport()"><option value="tabseet_approved">المبسّطون فقط</option><option value="all">كل الطلبات</option></select>
+              <button class="fbtn g" onclick="buildReport()">🔄</button>
+              <button class="fbtn pr" onclick="printGroupReport()">🖨️</button>
+            </div>
+            <div style="font-size:11px;color:rgba(255,255,255,.5);">النتائج: <strong id="rep-count" style="color:#c9a84c;">0 شخص</strong></div>
+          </div>
+          <div id="rep-empty" style="display:none;text-align:center;padding:20px;color:rgba(255,255,255,.4);font-size:12px;">لا توجد نتائج — غير الفلتر</div>
+          <div class="card" id="rep-wa-card" style="display:none;">
+            <div class="ctitle">📱 رسالة واتساب الجماعية</div>
+            <div id="wa-preview" style="background:#e7f8e9;border:1.5px solid #25d366;border-radius:10px;padding:12px;font-size:12px;line-height:1.9;white-space:pre-line;margin-bottom:10px;color:#1c2a22;direction:rtl;"></div>
+            <div style="display:flex;gap:7px;flex-wrap:wrap;">
+              <button class="fbtn wa" onclick="copyWA()">📋 نسخ</button>
+              <button class="fbtn" style="background:#075e54;color:#fff;" onclick="openWA()">📱 فتح واتساب</button>
+            </div>
+          </div>
+          <div class="card" id="rep-ind-card" style="display:none;">
+            <div class="ctitle" style="margin-bottom:10px;">📲 روابط فردية</div>
+            <div id="rep-ind-list"></div>
+          </div>
+          <div class="card" id="rep-grp-card" style="display:none;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:6px;">
+              <div class="ctitle" style="margin:0;">📋 تقرير القروب</div>
+              <button class="fbtn g" onclick="copyGrp()">📋 نسخ</button>
+            </div>
+            <div id="grp-preview" style="background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:12px;font-size:11px;line-height:2;white-space:pre-line;color:rgba(255,255,255,.8);font-family:monospace;max-height:280px;overflow-y:auto;direction:rtl;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+
+/* ══ SUPABASE ══ */
+var SB_URL =  + SB_URL + ;
+var SB_KEY =  + SB_KEY + ;
+var sb = null;
+var currentAdmin = null;
+var allApps = [];
+
+window.onload = function(){
+  try{ sb = window.supabase.createClient(SB_URL, SB_KEY, {auth:{persistSession:false}}); }
+  catch(e){ console.log('SB error:', e); }
+};
+
+/* ══ HASH PASSWORD ══ */
+async function hashPw(pw){
+  var buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw));
+  return Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
+}
+
+/* ══ LOGIN ══ */
+async function admLogin(){
+  var username = (document.getElementById('adm-user').value||'').trim().toLowerCase();
+  var pw = document.getElementById('adm-pw').value;
+  var btn = document.getElementById('login-btn');
+  var btnTxt = document.getElementById('login-btn-txt');
+  var errEl = document.getElementById('login-err');
+  errEl.style.display = 'none';
+  if(!username || !pw){ errEl.textContent='أدخل اسم المستخدم وكلمة المرور'; errEl.style.display='block'; return; }
+  btn.disabled = true; btnTxt.textContent = '⏳ جاري التحقق...';
+  try{
+    var hash = await hashPw(pw);
+    var res = await sb.from('admins').select('*').eq('username',username).eq('password_hash',hash).eq('active',true).single();
+    if(res.error || !res.data){
+      errEl.textContent = 'اسم المستخدم أو كلمة المرور غير صحيحة';
+      errEl.style.display = 'block';
+      btn.disabled = false; btnTxt.textContent = 'دخول';
+      return;
+    }
+    currentAdmin = res.data;
+    await sb.from('admins').update({last_login: new Date().toISOString()}).eq('id', currentAdmin.id);
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('admin-app').style.display = 'block';
+    var nameEl = document.getElementById('admin-name');
+    if(nameEl) nameEl.textContent = currentAdmin.name;
+    if(currentAdmin.role === 'reception'){
+      var repTab = document.getElementById('tb-rep');
+      if(repTab) repTab.style.display = 'none';
+    }
+    loadApps();
+    initRt();
+  }catch(e){
+    errEl.textContent = 'خطأ في الاتصال: ' + e.message;
+    errEl.style.display = 'block';
+  }
+  btn.disabled = false; btnTxt.textContent = 'دخول';
+}
+
+function admLogout(){
+  currentAdmin = null;
+  allApps = [];
+  document.getElementById('admin-app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('adm-user').value = '';
+  document.getElementById('adm-pw').value = '';
+  document.getElementById('login-err').style.display = 'none';
+  toast('تم تسجيل الخروج', 'ok');
+}
+
+/* ══ LOAD FROM SUPABASE ══ */
+async function loadApps(){
+  setSyncBadge('loading');
+  try{
+    var res = await sb.from('passport_applications').select('*').order('created_at',{ascending:false});
+    if(!res.error){ allApps = res.data||[]; setSyncBadge('ok', allApps.length); }
+    else throw res.error;
+  }catch(e){ setSyncBadge('err'); toast('خطأ في الاتصال','err'); }
+  renderAll(); buildAreaFilter(); buildRepAreaFilter(); loadMissionDetails();
+}
+
+function setSyncBadge(st, count){
+  var el = document.getElementById('adm-sync'); if(!el) return;
+  if(st==='ok'){ el.style.background='rgba(46,107,79,.5)'; el.textContent='🟢 '+(count||allApps.length)+' طلب'; }
+  else if(st==='err'){ el.style.background='rgba(192,57,43,.5)'; el.textContent='🔴 خطأ'; }
+  else{ el.style.background='rgba(201,168,76,.3)'; el.textContent='🔄 ...'; }
+}
+
+/* ══ REALTIME ══ */
+function initRt(){
+  try{
+    sb.channel('passport-live')
+      .on('postgres_changes',{event:'INSERT',schema:'public',table:'passport_applications'},function(p){
+        allApps.unshift(p.new); renderAll(); buildAreaFilter(); toast('🔔 طلب جديد: '+p.new.full_name,'ok'); setSyncBadge('ok');
+      })
+      .on('postgres_changes',{event:'UPDATE',schema:'public',table:'passport_applications'},function(p){
+        var idx = allApps.findIndex(function(a){return a.id===p.new.id;});
+        if(idx>=0) allApps[idx] = p.new;
+        renderAll();
+      })
+      .subscribe();
+  }catch(e){}
+}
+
+/* ══ UPDATE STATUS ══ */
+async function updStatus(id, st){
+  var a = allApps.find(function(x){return x.id===id;}); if(!a) return;
+  try{
+    var res = await sb.from('passport_applications').update({status:st,updated_at:new Date().toISOString()}).eq('id',id);
+    if(res.error) throw res.error;
+    a.status = st;
+  }catch(e){ toast('خطأ: '+e.message,'err'); return; }
+  closeMod(); renderAll();
+  var lbls = {processing:'قيد المعالجة',ready:'جاهز للاستلام',delivered:'تم التسليم',cancelled:'ملغي'};
+  toast('✅ '+(lbls[st]||st),'ok');
+}
+
+async function approveTab(id){
+  var a = allApps.find(function(x){return x.id===id;}); if(!a) return;
+  try{
+    var res = await sb.from('passport_applications').update({status:'tabseet_approved',updated_at:new Date().toISOString()}).eq('id',id);
+    if(res.error) throw res.error;
+    a.status = 'tabseet_approved';
+  }catch(e){ toast('خطأ: '+e.message,'err'); return; }
+  closeMod(); renderAll(); switchTab('mob'); toast('✅ تم اعتماد التبسيط','ok');
+}
+
+async function acceptFromReception(id){
+  await updStatus(id,'processing');
+  closeReview();
+}
+
+async function rejectFromReception(id){
+  var a = allApps.find(function(x){return x.id===id;}); if(!a) return;
+  var reason = (document.getElementById('reject-notes')||{value:''}).value.trim() || rejReasonSelected;
+  if(!reason){ toast('أدخل سبب الرفض','err'); return; }
+  try{
+    var res = await sb.from('passport_applications').update({
+      status:'cancelled', notes:'رُفض: '+reason, updated_at:new Date().toISOString()
+    }).eq('id',id);
+    if(res.error) throw res.error;
+    a.status='cancelled'; a.notes='رُفض: '+reason;
+  }catch(e){ toast('خطأ: '+e.message,'err'); return; }
+  var phone = (a.phone||'').replace(/^0/,'966');
+  var msg = 'الجالية السودانية بجازان\n\nالاخ/الاخت: '+a.full_name+'\n\nتم رفض طلبكم رقم '+a.ref_num+'\nالسبب: '+reason+'\n\nيرجى تصحيح المعلومات وإعادة تقديم الطلب:\nsudanesejazan-star.github.io/CASH/passport.html';
+  window.open('https://wa.me/'+phone+'?text='+encodeURIComponent(msg),'_blank');
+  closeReview(); renderAll(); toast('❌ تم الرفض وفُتح واتساب','warn');
+}
+
+async function executeAutoTabseet(){
+  if(!matchedApps.length){ toast('لا توجد طلبات','warn'); return; }
+  var btn = document.getElementById('auto-tab-btn');
+  btn.textContent = '⏳ جاري...'; btn.disabled = true;
+  var done=0, failed=0;
+  for(var i=0; i<matchedApps.length; i++){
+    var a = matchedApps[i];
+    try{
+      var res = await sb.from('passport_applications').update({status:'tabseet_approved',updated_at:new Date().toISOString()}).eq('id',a.id);
+      if(res.error) throw res.error;
+      a.status='tabseet_approved'; done++;
+    }catch(e){ failed++; }
+  }
+  btn.textContent='✅ تم'; btn.disabled=false;
+  matchedApps=[]; document.getElementById('match-results').style.display='none';
+  document.getElementById('bulk-nids').value=''; document.getElementById('excel-status').textContent='';
+  renderAll(); switchTab('mob'); toast('✅ تم تبسيط '+done+' طلب'+(failed?' | فشل '+failed:''),'ok');
+}
+
+function buildRepAreaFilter(){
+  var sel = document.getElementById('rep-area'); if(!sel) return;
+  while(sel.options.length>1) sel.remove(1);
+  var areas=[...new Set(allApps.map(function(a){return a.area||'';}))].filter(Boolean).sort();
+  areas.forEach(function(ar){var o=document.createElement('option');o.value=ar;o.textContent=ar;sel.appendChild(o);});
+}
+
+
+
+/* ══ DEMO DATA ══ */
+var JOB_LABELS = {
+  doctor:'👨‍⚕️ طبيب',nurse:'💊 ممرض',pharmacist:'🧪 صيدلاني',health_other:'🏥 صحة',
+  engineer:'👷 مهندس',tech:'💻 تقني',tech_other:'⚙️ تقني',
+  gov_employee:'🏛️ موظف حكومي',military:'🎖️ عسكري',teacher_gov:'📚 معلم حكومي',
+  private_employee:'🏢 موظف خاص',business:'💼 تاجر',teacher_private:'📖 معلم خاص',
+  student:'🎓 طالب',housewife:'🏠 ربة منزل',retired:'👴 متقاعد',
+  unemployed:'🔍 باحث عن عمل',other:'📋 أخرى'
+};
+var JOB_DAYS = {
+  doctor:'الأحد',nurse:'الأحد',pharmacist:'الأحد',health_other:'الأحد',
+  engineer:'الاثنين',tech:'الاثنين',tech_other:'الاثنين',
+  gov_employee:'الثلاثاء',military:'الثلاثاء',teacher_gov:'الثلاثاء',
+  private_employee:'الأربعاء',business:'الأربعاء',teacher_private:'الأربعاء',
+  student:'الخميس',housewife:'الخميس',retired:'الخميس',unemployed:'الخميس',other:'الخميس'
+};
+var DAY_COLORS = {'الأحد':'#1a5fa8','الاثنين':'#2e6b4f','الثلاثاء':'#6c3483','الأربعاء':'#e67e22','الخميس':'#c0392b'};
+function getDay(job){return JOB_DAYS[job]||'الخميس';}
+function getJobLbl(job){return JOB_LABELS[job]||job||'—';}
+function calcAge(dob){
+  if(!dob) return null;
+  var t=new Date(),b=new Date(dob),a=t.getFullYear()-b.getFullYear();
+  if(t.getMonth()<b.getMonth()||(t.getMonth()===b.getMonth()&&t.getDate()<b.getDate())) a--;
+  return a;
+}
+function getPT(dob){var a=calcAge(dob);return a===null?'adult':a<18?'child':'adult';}
+
+var allApps = [
+  {id:'a1',ref_num:'JZ-101234',request_type:'renew',full_name:'محمد عبدالله أحمد إبراهيم',national_id:'12345678901',phone:'0501234567',dob:'1985-03-15',gender:'male',area:'جازان المدينة',job:'doctor',person_type:'adult',age:40,status:'pending',created_at:'2026-05-14T08:10:00Z',notes:''},
+  {id:'a2',ref_num:'JZ-101235',request_type:'new',full_name:'فاطمة علي حسن محمد',national_id:'23456789012',phone:'0552345678',dob:'1992-07-22',gender:'female',area:'أبو عريش',job:'teacher_gov',person_type:'adult',age:33,status:'tabseet_approved',created_at:'2026-05-14T08:45:00Z',notes:''},
+  {id:'a3',ref_num:'JZ-101236',request_type:'renew',full_name:'أحمد محمد عمر خالد',national_id:'34567890123',phone:'0523456789',dob:'1978-11-08',gender:'male',area:'صبيا',job:'engineer',person_type:'adult',age:47,status:'processing',created_at:'2026-05-14T09:15:00Z',notes:''},
+  {id:'a4',ref_num:'JZ-101237',request_type:'renew',full_name:'مريم إبراهيم عثمان علي',national_id:'45678901234',phone:'0534567890',dob:'2010-04-30',gender:'female',area:'جازان المدينة',job:'student',person_type:'child',age:15,status:'tabseet_approved',created_at:'2026-05-14T09:30:00Z',notes:'طفلة — والدها بصحبتها'},
+  {id:'a5',ref_num:'JZ-101238',request_type:'new',full_name:'يوسف حامد محمود سالم',national_id:'56789012345',phone:'0545678901',dob:'1995-09-12',gender:'male',area:'العارضة',job:'private_employee',person_type:'adult',age:30,status:'ready',created_at:'2026-05-14T10:00:00Z',notes:''},
+  {id:'a6',ref_num:'JZ-101239',request_type:'renew',full_name:'نورة سالم عبدالرحمن محمد',national_id:'67890123456',phone:'0556789012',dob:'1988-12-03',gender:'female',area:'صامطة',job:'nurse',person_type:'adult',age:37,status:'tabseet_approved',created_at:'2026-05-14T10:20:00Z',notes:''},
+  {id:'a7',ref_num:'JZ-101240',request_type:'renew',full_name:'خالد أحمد موسى عبدالله',national_id:'78901234567',phone:'0507890123',dob:'1970-06-25',gender:'male',area:'بيش',job:'gov_employee',person_type:'adult',age:55,status:'pending',created_at:'2026-05-14T11:00:00Z',notes:''},
+  {id:'a8',ref_num:'JZ-101241',request_type:'new',full_name:'هدى محمد عبدالله حسين',national_id:'89012345678',phone:'0568901234',dob:'2014-02-18',gender:'female',area:'أحد المسارحة',job:'student',person_type:'child',age:12,status:'pending',created_at:'2026-05-14T11:30:00Z',notes:'طفلة — بحاجة لهوية الوالد'},
+  {id:'a9',ref_num:'JZ-101242',request_type:'renew',full_name:'عمر إدريس يوسف كمال',national_id:'90123456789',phone:'0509012345',dob:'1982-08-14',gender:'male',area:'الدرب',job:'business',person_type:'adult',age:43,status:'tabseet_approved',created_at:'2026-05-14T12:00:00Z',notes:''},
+  {id:'a10',ref_num:'JZ-101243',request_type:'new',full_name:'آمنة طارق علي محمود',national_id:'01234567890',phone:'0570123456',dob:'1999-01-07',gender:'female',area:'ضمد',job:'pharmacist',person_type:'adult',age:27,status:'processing',created_at:'2026-05-14T12:30:00Z',notes:''}
+];
+
+var charts = {};
+var listPage = 1;
+var listFiltered = allApps.slice();
+var waMsg = '';
+var grpMsg = '';
+
+/* ══ INIT ══ */
+window.onload = function(){
+  buildAreaFilter();
+  renderAll();
+  setInterval(function(){
+    var el=document.getElementById('hdr-count');
+    if(el) el.textContent = allApps.length+' طلب';
+  },1000);
+};
+
+function renderAll(){
+  renderKPIs();
+  buildCharts();
+  renderFeed();
+  renderList();
+  renderMob();
+  buildReport();
+}
+
+/* ══ KPIs ══ */
+function renderKPIs(){
+  var tot=allApps.length;
+  var pend=allApps.filter(function(a){return a.status==='pending';}).length;
+  var proc=allApps.filter(function(a){return a.status==='processing';}).length;
+  var rdy=allApps.filter(function(a){return a.status==='ready';}).length;
+  var adu=allApps.filter(function(a){return a.person_type==='adult';}).length;
+  var chi=allApps.filter(function(a){return a.person_type==='child';}).length;
+  animNum('k-tot',tot); animNum('k-pend',pend); animNum('k-proc',proc);
+  animNum('k-rdy',rdy); animNum('k-adu',adu); animNum('k-chi',chi);
+  document.getElementById('hdr-count').textContent = tot+' طلب';
+}
+
+/* ══ CHARTS ══ */
+function buildCharts(){
+  Object.values(charts).forEach(function(c){try{c.destroy();}catch(e){}});
+  charts={};
+  var renew=allApps.filter(function(a){return a.request_type==='renew';}).length;
+  var newP=allApps.filter(function(a){return a.request_type==='new';}).length;
+  var c1=document.getElementById('ch-tp');
+  if(c1) charts.tp=new Chart(c1,{type:'doughnut',data:{labels:['تجديد','إصدار جديد'],datasets:[{data:[renew,newP],backgroundColor:['#2e6b4f','#1a5fa8'],borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'bottom',labels:{font:{family:'Tajawal'},boxWidth:10,padding:6}}}}});
+
+  var adu=allApps.filter(function(a){return a.person_type==='adult';}).length;
+  var chi=allApps.filter(function(a){return a.person_type==='child';}).length;
+  var c2=document.getElementById('ch-pt');
+  if(c2) charts.pt=new Chart(c2,{type:'doughnut',data:{labels:['بالغون','أطفال'],datasets:[{data:[adu,chi],backgroundColor:['#1a5fa8','#c9a84c'],borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'bottom',labels:{font:{family:'Tajawal'},boxWidth:10,padding:6}}}}});
+
+  var areaMap={};
+  allApps.forEach(function(a){var ar=a.area||'?';areaMap[ar]=(areaMap[ar]||0)+1;});
+  var areas=Object.keys(areaMap).sort(function(a,b){return areaMap[b]-areaMap[a];});
+  var c3=document.getElementById('ch-ar');
+  if(c3) charts.ar=new Chart(c3,{type:'bar',data:{labels:areas,datasets:[{data:areas.map(function(a){return areaMap[a];}),backgroundColor:'#c9a84c',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{family:'Tajawal',size:9}}},y:{ticks:{font:{family:'Tajawal',size:9},stepSize:1}}}}});
+}
+
+/* ══ FEED ══ */
+function renderFeed(){
+  var el=document.getElementById('feed'); if(!el) return;
+  var stMap={pending:{lbl:'بانتظار',cls:'bo'},processing:{lbl:'معالجة',cls:'bb'},tabseet_approved:{lbl:'تم التبسيط',cls:'bg'},ready:{lbl:'جاهز',cls:'bg'},delivered:{lbl:'تم التسليم',cls:'bgold'},cancelled:{lbl:'ملغي',cls:'br'}};
+  el.innerHTML=allApps.slice(0,8).map(function(a){
+    var sm=stMap[a.status]||{lbl:a.status,cls:'bgold'};
+    var last4=(a.national_id||'').slice(-4);
+    var typeL=a.request_type==='renew'?'تجديد':'جديد';
+    var dayC=DAY_COLORS[getDay(a.job)]||'#555';
+    return '<div class="feed-item">'
+      +'<div class="feed-ref">'+a.ref_num+'</div>'
+      +'<div style="flex:1;min-width:0;">'
+      +'<div class="feed-name">'+a.full_name+' <span style="color:var(--muted);font-size:9px;">(****'+last4+')</span></div>'
+      +'<div class="feed-meta">'+a.area+' · '+typeL+' · <span style="color:'+dayC+';font-weight:700;">'+getDay(a.job)+'</span></div>'
+      +'</div>'
+      +'<span class="badge '+sm.cls+'" style="margin-left:6px;">'+sm.lbl+'</span>'
+      +'<button class="ibtn" data-id="'+a.id+'" onclick="showDet(this.dataset.id)">تفاصيل</button>'
+      +'</div>';
+  }).join('');
+}
+
+/* ══ LIST ══ */
+function buildAreaFilter(){
+  var sel=document.getElementById('s-ar'); if(!sel) return;
+  while(sel.options.length>1) sel.remove(1);
+  var areas=[...new Set(allApps.map(function(a){return a.area||'';}))].filter(Boolean).sort();
+  areas.forEach(function(ar){var o=document.createElement('option');o.value=ar;o.textContent=ar;sel.appendChild(o);});
+}
+
+function renderList(){
+  var q=(document.getElementById('s-q').value||'').toLowerCase();
+  var tp=document.getElementById('s-tp').value;
+  var st=document.getElementById('s-st').value;
+  var pt=document.getElementById('s-pt').value;
+  var ar=document.getElementById('s-ar').value;
+  listFiltered=allApps.filter(function(a){
+    if(q&&!(a.full_name||'').toLowerCase().includes(q)&&!(a.phone||'').includes(q)&&!(a.national_id||'').includes(q)&&!(a.ref_num||'').includes(q)) return false;
+    if(tp&&a.request_type!==tp) return false;
+    if(st&&a.status!==st) return false;
+    if(pt&&a.person_type!==pt) return false;
+    if(ar&&a.area!==ar) return false;
+    return true;
+  });
+  document.getElementById('list-cnt').textContent=listFiltered.length+' طلب';
+  listPage=1; renderListTable();
+}
+
+function renderListTable(){
+  var perPage=15, start=(listPage-1)*perPage, page=listFiltered.slice(start,start+perPage);
+  var stMap={pending:{lbl:'⏳ بانتظار',cls:'bo'},processing:{lbl:'⚙️ معالجة',cls:'bb'},tabseet_approved:{lbl:'🔍 تم التبسيط',cls:'bg'},ready:{lbl:'✅ جاهز',cls:'bg'},delivered:{lbl:'📦 تسليم',cls:'bgold'},cancelled:{lbl:'❌ ملغي',cls:'br'}};
+  var tbody=document.getElementById('list-tbody'); if(!tbody) return;
+  if(!page.length){tbody.innerHTML='<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--muted);">لا توجد نتائج</td></tr>';return;}
+  tbody.innerHTML=page.map(function(a){
+    var sm=stMap[a.status]||{lbl:a.status,cls:'bgold'};
+    var typeL=a.request_type==='renew'?'🔄 تجديد':'✨ جديد';
+    var ptLbl=a.person_type==='child'?'<span class="badge bgold">👶 طفل</span>':'<span class="badge bb">🧑 بالغ</span>';
+    var dayC=DAY_COLORS[getDay(a.job)]||'#555';
+    return '<tr>'
+      +'<td style="font-size:10px;font-weight:700;color:var(--gl);">'+a.ref_num+'</td>'
+      +'<td style="font-weight:700;">'+a.full_name+'</td>'
+      +'<td style="font-size:10px;direction:ltr;text-align:right;">'+a.phone+'</td>'
+      +'<td style="font-size:11px;">'+typeL+'</td>'
+      +'<td>'+ptLbl+'</td>'
+      +'<td style="font-size:10px;">'+getJobLbl(a.job)+'</td>'
+      +'<td style="font-size:10px;">'+a.area+'</td>'
+      +'<td><span class="badge '+sm.cls+'">'+sm.lbl+'</span></td>'
+      +'<td><span class="day-label" style="background:'+dayC+'22;color:'+dayC+';font-size:10px;font-weight:800;">'+getDay(a.job)+'</span></td>'
+      +'<td><button class="ibtn" data-id="'+a.id+'" onclick="showDet(this.dataset.id)">تفاصيل</button></td>'
+      +'</tr>';
+  }).join('');
+  var maxPage=Math.max(1,Math.ceil(listFiltered.length/perPage));
+  var pag=document.getElementById('list-pag');
+  pag.innerHTML='<button class="fbtn out" onclick="goPage('+(listPage-1)+')" '+(listPage<=1?'disabled':'')+'>→ السابق</button>'
+    +'<span style="font-size:11px;color:var(--muted);">'+listPage+' / '+maxPage+'</span>'
+    +'<button class="fbtn out" onclick="goPage('+(listPage+1)+')" '+(listPage>=maxPage?'disabled':'')+'> التالي ←</button>'
+    +'<span style="font-size:11px;color:var(--muted);margin-right:auto;">'+listFiltered.length+' طلب</span>';
+}
+function goPage(p){var max=Math.max(1,Math.ceil(listFiltered.length/15));listPage=Math.max(1,Math.min(max,p));renderListTable();}
+
+/* ══ DETAIL MODAL ══ */
+function showDet(id){
+  var a=allApps.find(function(x){return x.id===id;}); if(!a) return;
+  var stMap={pending:{lbl:'⏳ بانتظار',cls:'bo'},processing:{lbl:'⚙️ قيد المعالجة',cls:'bb'},tabseet_approved:{lbl:'🔍 تم التبسيط',cls:'bg'},ready:{lbl:'✅ جاهز للاستلام',cls:'bg'},delivered:{lbl:'📦 تم التسليم',cls:'bgold'},cancelled:{lbl:'❌ ملغي',cls:'br'}};
+  var sm=stMap[a.status]||{lbl:a.status,cls:'bgold'};
+  var gL=a.gender==='male'?'ذكر':'أنثى';
+  var typeL=a.request_type==='renew'?'🔄 تجديد':'✨ إصدار جديد';
+  var last4=(a.national_id||'').slice(-4);
+  var dayC=DAY_COLORS[getDay(a.job)]||'#555';
+  document.getElementById('det-title').textContent='طلب '+a.ref_num;
+  document.getElementById('det-body').innerHTML=
+    '<div style="margin-bottom:10px;display:flex;gap:6px;flex-wrap:wrap;">'
+    +'<span class="badge '+sm.cls+'" style="font-size:11px;padding:3px 10px;">'+sm.lbl+'</span>'
+    +'<span class="badge" style="background:'+dayC+'22;color:'+dayC+';font-size:11px;padding:3px 10px;">📅 '+getDay(a.job)+'</span>'
+    +'</div>'
+    +'<div class="det-row"><span class="det-lbl">النوع</span><span class="det-val">'+typeL+'</span></div>'
+    +'<div class="det-row"><span class="det-lbl">الاسم الكامل</span><span class="det-val">'+a.full_name+'</span></div>'
+    +'<div class="det-row"><span class="det-lbl">الرقم الوطني</span><span class="det-val" style="direction:ltr;">'+a.national_id+'</span></div>'
+    +'<div class="det-row"><span class="det-lbl">آخر 4 أرقام</span><span class="det-val">****'+last4+'</span></div>'
+    +'<div class="det-row"><span class="det-lbl">الجوال</span><span class="det-val" style="direction:ltr;">'+a.phone+'</span></div>'
+    +'<div class="det-row"><span class="det-lbl">تاريخ الميلاد</span><span class="det-val">'+a.dob+' ('+a.age+' سنة)</span></div>'
+    +'<div class="det-row"><span class="det-lbl">الجنس</span><span class="det-val">'+gL+'</span></div>'
+    +'<div class="det-row"><span class="det-lbl">المستفيد</span><span class="det-val">'+(a.person_type==='child'?'👶 طفل (50 ر.س)':'🧑 بالغ (100 ر.س)')+'</span></div>'
+    +'<div class="det-row"><span class="det-lbl">المنطقة</span><span class="det-val">'+a.area+'</span></div>'
+    +'<div class="det-row"><span class="det-lbl">المهنة</span><span class="det-val">'+getJobLbl(a.job)+'</span></div>'
+    +'<div class="det-row"><span class="det-lbl">يوم الموعد</span><span class="det-val" style="color:'+dayC+';font-weight:800;">'+getDay(a.job)+'</span></div>'
+    +(a.notes?'<div class="det-row"><span class="det-lbl">ملاحظات</span><span class="det-val">'+a.notes+'</span></div>':'')
+    +'<div style="font-size:11px;font-weight:800;color:var(--gm);margin:12px 0 7px;">تحديث الحالة</div>'
+    +'<div class="status-grid">'
+    +'<button class="sbtn s-proc" data-id="'+a.id+'" data-st="processing" onclick="updStatus(this.dataset.id,this.dataset.st)">⚙️ قيد المعالجة</button>'
+    +'<button class="sbtn s-ready" data-id="'+a.id+'" data-st="ready" onclick="updStatus(this.dataset.id,this.dataset.st)">✅ جاهز للاستلام</button>'
+    +'<button class="sbtn s-dlvr" data-id="'+a.id+'" data-st="delivered" onclick="updStatus(this.dataset.id,this.dataset.st)">📦 تم التسليم</button>'
+    +'<button class="sbtn s-cncl" data-id="'+a.id+'" data-st="cancelled" onclick="updStatus(this.dataset.id,this.dataset.st)">❌ إلغاء</button>'
+    +'</div>'
+    +'<div style="font-size:11px;font-weight:800;color:var(--blue);margin:12px 0 7px;border-top:1px dashed var(--border);padding-top:10px;">🔍 التبسيط</div>'
+    +'<div style="display:flex;gap:7px;flex-wrap:wrap;">'
+    +'<button class="sbtn s-proc" data-id="'+a.id+'" onclick="printTabseet(this.dataset.id)">🖨️ طباعة ورقة التبسيط</button>'
+    +'<button class="sbtn s-ready" data-id="'+a.id+'" onclick="approveTab(this.dataset.id)">✅ اعتماد التبسيط</button>'
+    +'</div>';
+  document.getElementById('m-det').classList.add('show');
+}
+
+function updStatus(id,st){
+  var a=allApps.find(function(x){return x.id===id;});
+  if(!a) return;
+  a.status=st;
+  var lbls={processing:'قيد المعالجة',ready:'جاهز للاستلام',delivered:'تم التسليم',cancelled:'ملغي'};
+  closeMod();
+  renderAll();
+  toast('✅ تم التحديث: '+(lbls[st]||st),'ok');
+}
+function approveTab(id){
+  var a=allApps.find(function(x){return x.id===id;});
+  if(!a) return;
+  a.status='tabseet_approved';
+  closeMod();
+  renderAll();
+  switchTab('mob');
+  toast('✅ تم اعتماد التبسيط — أضيف للمبسّطين','ok');
+}
+function closeMod(){document.getElementById('m-det').classList.remove('show');}
+document.getElementById('m-det').addEventListener('click',function(e){if(e.target===this)closeMod();});
+
+/* ══ TABSEET SEARCH ══ */
+function doSearch(){
+  var nid=(document.getElementById('tab-nid').value||'').trim();
+  var el=document.getElementById('tab-result'); if(!el) return;
+  if(nid.length!==11){toast('الرقم الوطني 11 رقم','err');return;}
+  var apps=allApps.filter(function(a){return a.national_id===nid;});
+  if(!apps.length){
+    el.innerHTML='<div style="background:var(--red-p);border:1px solid #e8c5c1;border-radius:10px;padding:14px;text-align:center;color:var(--red);font-weight:700;">❌ لا يوجد طلب بهذا الرقم الوطني</div>';
+    return;
+  }
+  var a=apps[0];
+  var stMap={pending:'⏳ بانتظار',processing:'⚙️ قيد المعالجة',tabseet_approved:'🔍 تم التبسيط',ready:'✅ جاهز',delivered:'📦 تم التسليم'};
+  var dayC=DAY_COLORS[getDay(a.job)]||'#555';
+  el.innerHTML='<div class="res-card">'
+    +'<div class="res-hdr">'
+    +'<div style="background:var(--gp);border-radius:8px;padding:3px 9px;font-size:10px;font-weight:800;color:var(--gl);">'+a.ref_num+'</div>'
+    +'<div style="font-size:15px;font-weight:800;">'+a.full_name+'</div>'
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;font-size:12px;margin-bottom:10px;">'
+    +'<div><span style="color:var(--muted);font-size:10px;">الرقم الوطني</span><br/><strong style="direction:ltr;display:block;">'+a.national_id+'</strong></div>'
+    +'<div><span style="color:var(--muted);font-size:10px;">الجوال</span><br/><strong style="direction:ltr;display:block;">'+a.phone+'</strong></div>'
+    +'<div><span style="color:var(--muted);font-size:10px;">المنطقة</span><br/><strong>'+a.area+'</strong></div>'
+    +'<div><span style="color:var(--muted);font-size:10px;">المهنة</span><br/><strong>'+getJobLbl(a.job)+'</strong></div>'
+    +'<div><span style="color:var(--muted);font-size:10px;">المستفيد</span><br/><strong>'+(a.person_type==='child'?'👶 طفل 50 ر.س':'🧑 بالغ 100 ر.س')+'</strong></div>'
+    +'<div><span style="color:var(--muted);font-size:10px;">يوم الموعد</span><br/><strong style="color:'+dayC+'">'+getDay(a.job)+'</strong></div>'
+    +'</div>'
+    +'<div style="background:var(--surf);border-radius:8px;padding:8px 12px;font-size:11px;margin-bottom:10px;">'
+    +'الحالة: <strong>'+(stMap[a.status]||a.status)+'</strong></div>'
+    +'<div class="action-btns">'
+    +'<button class="action-btn ab-print" data-id="'+a.id+'" onclick="printTabseet(this.dataset.id)">🖨️ طباعة ورقة التبسيط</button>'
+    +'<button class="action-btn ab-approve" data-id="'+a.id+'" onclick="approveTab(this.dataset.id)">✅ اعتماد التبسيط</button>'
+    +'</div>'
+    +'</div>';
+}
+
+/* ══ PRINT TABSEET ══ */
+function printTabseet(id){
+  var a=allApps.find(function(x){return x.id===id;}); if(!a){toast('لم يُعثر على الطلب','err');return;}
+  var today=new Date().toLocaleDateString('ar-SA',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  var typeL=a.request_type==='renew'?'تجديد جواز السفر':'إصدار جواز سفر جديد';
+  var gL=a.gender==='male'?'ذكر':'أنثى';
+  var passRow=a.current_passport?'<tr><td>رقم الجواز الحالي</td><td style="direction:ltr;">'+a.current_passport+'</td></tr>':'';
+  var html='<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"/>'
+    +'<title>ورقة التبسيط - '+a.ref_num+'</title>'
+    +'<style>'
+    +'@import url(\'https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;800;900&display=swap\');'
+    +'*{box-sizing:border-box;margin:0;padding:0;}'
+    +'body{font-family:Tajawal,Arial;direction:rtl;color:#000;background:#fff;padding:0;}'
+    +'@page{size:A4;margin:15mm;}'
+    +'.page{padding:0;}'
+    +'.hdr{display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #1a3d2b;padding-bottom:10px;margin-bottom:14px;}'
+    +'.hdr-left{display:flex;align-items:center;gap:12px;}'
+    +'.emblem{width:52px;height:52px;background:#c9a84c;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;}'
+    +'.org-name{font-size:16px;font-weight:900;color:#1a3d2b;}'
+    +'.org-sub{font-size:10px;color:#2e6b4f;margin-top:2px;}'
+    +'.doc-info{text-align:left;}'
+    +'.doc-num{font-size:14px;font-weight:800;color:#1a3d2b;}'
+    +'.doc-date{font-size:10px;color:#555;margin-top:2px;}'
+    +'.title-bar{background:#1a3d2b;color:#fff;text-align:center;padding:10px;border-radius:6px;margin-bottom:12px;}'
+    +'.title-bar h1{font-size:17px;font-weight:900;}'
+    +'.title-bar p{font-size:11px;opacity:.8;margin-top:2px;}'
+    +'.conf{background:#fff3cd;border:1px solid #c9a84c;border-radius:6px;padding:7px 12px;margin-bottom:12px;font-size:11px;font-weight:700;color:#8a6010;}'
+    +'.sec-title{background:#e8f5ee;border-right:4px solid #2e6b4f;padding:6px 10px;font-size:12px;font-weight:800;color:#1a3d2b;margin-bottom:8px;}'
+    +'table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:12px;}'
+    +'td{padding:7px 10px;border:1px solid #ddd;}'
+    +'td:first-child{background:#f5f5f5;font-weight:700;width:38%;}'
+    +'.passport-sec{display:flex;gap:14px;margin-bottom:12px;align-items:flex-start;}'
+    +'.passport-img-box{flex:1;border:2px solid #1a3d2b;border-radius:6px;height:160px;display:flex;align-items:center;justify-content:center;background:#f9f9f9;font-size:40px;}'
+    +'.photo-box{width:100px;text-align:center;}'
+    +'.photo-placeholder{width:90px;height:110px;border:2px solid #1a3d2b;border-radius:4px;background:#f0f0f0;display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto;}'
+    +'.photo-lbl{font-size:9px;color:#666;margin-top:3px;}'
+    +'.note{background:#fdf0ee;border:1px solid #e8c5c1;border-radius:6px;padding:9px 12px;margin-bottom:12px;font-size:10px;color:#c0392b;line-height:1.7;}'
+    +'.appt-box{background:#e8f5ee;border:2px solid #2e6b4f;border-radius:8px;padding:10px;margin-bottom:12px;text-align:center;}'
+    +'.appt-day{font-size:20px;font-weight:900;color:#1a3d2b;}'
+    +'.appt-sub{font-size:10px;color:#555;margin-top:2px;}'
+    +'.sigs{display:flex;justify-content:space-between;margin-top:18px;border-top:1px dashed #999;padding-top:12px;}'
+    +'.sig{text-align:center;width:30%;}'
+    +'.sig-line{border-top:1px solid #333;margin-top:28px;padding-top:4px;font-size:9px;color:#555;}'
+    +'.footer{text-align:center;font-size:8px;color:#888;border-top:1px dashed #ccc;padding-top:6px;margin-top:10px;}'
+    +'</style></head><body><div class="page">'
+    +'<div class="hdr"><div class="hdr-left"><div class="emblem">&#x1F6C2;</div>'
+    +'<div><div class="org-name">الجالية السودانية بجازان</div><div class="org-sub">المملكة العربية السعودية — قسم الجوازات</div></div></div>'
+    +'<div class="doc-info"><div class="doc-num">'+a.ref_num+'</div><div class="doc-date">'+today+'</div></div></div>'
+    +'<div class="title-bar"><h1>ورقة التبسيط الأمني لجواز السفر</h1><p>'+typeL+'</p></div>'
+    +'<div class="conf">&#x26A0;&#xFE0F; وثيقة داخلية — للفحص الأمني فقط · يُمنع التداول خارج الجهات المختصة</div>'
+    +'<div class="sec-title">البيانات الشخصية</div>'
+    +'<table><tr><td>الاسم الكامل</td><td style="font-size:14px;font-weight:800;">'+a.full_name+'</td></tr>'
+    +'<tr><td>الرقم الوطني</td><td style="direction:ltr;font-size:13px;font-weight:800;">'+a.national_id+'</td></tr>'
+    +'<tr><td>رقم الجوال</td><td style="direction:ltr;">'+a.phone+'</td></tr>'
+    +'<tr><td>تاريخ الميلاد</td><td>'+a.dob+' ('+a.age+' سنة)</td></tr>'
+    +'<tr><td>الجنس</td><td>'+gL+'</td></tr>'
+    +'<tr><td>المنطقة</td><td>'+a.area+'</td></tr>'
+    +'<tr><td>المهنة</td><td>'+getJobLbl(a.job)+'</td></tr>'
+    +passRow
+    +'<tr><td>نوع الطلب</td><td style="font-weight:800;">'+typeL+'</td></tr>'
+    +'<tr><td>التقديم</td><td>'+(a.created_at||'').slice(0,10)+'</td></tr></table>'
+    +'<div class="sec-title">صورة الجواز / الهوية</div>'
+    +'<div class="passport-sec">'
+    +'<div class="passport-img-box">&#x1F4C4;<br/><small style="font-size:11px;color:#999;">[صورة الجواز]</small></div>'
+    +'<div class="photo-box"><div class="photo-placeholder">&#x1F464;</div><div class="photo-lbl">الصورة الشخصية</div></div>'
+    +'</div>'
+    +'<div class="appt-box"><div class="appt-day">&#x1F4C5; يوم الموعد: '+getDay(a.job)+'</div><div class="appt-sub">'+getJobLbl(a.job)+'</div></div>'
+    +'<div class="note"><strong>ملاحظة للجهات الأمنية:</strong> تم رفع هذا الطلب عبر منظومة الجالية السودانية بجازان. يُرجى التحقق من صحة البيانات وإعادة الورقة مختومة مع قرار الاعتماد أو الرفض.</div>'
+    +'<div class="sigs"><div class="sig"><div class="sig-line">مسؤول الجوازات</div></div>'
+    +'<div class="sig"><div class="sig-line">ختم الجالية</div></div>'
+    +'<div class="sig"><div class="sig-line">الجهة الأمنية</div></div></div>'
+    +'<div class="footer">الجالية السودانية بجازان | '+a.ref_num+' | '+a.national_id+'</div>'
+    +'</div>'
+    +'<scr'+'ipt>window.onload=function(){setTimeout(function(){window.print();},600);}<'+'/script>'
+    +'</body></html>';
+  var win=window.open('','_blank');win.document.write(html);win.document.close();
+  toast('🖨️ جاري فتح نافذة الطباعة','ok');
+}
+
+/* ══ MOB LIST ══ */
+function renderMob(){
+  var mob=allApps.filter(function(a){return a.status==='tabseet_approved';});
+  var cnt=document.getElementById('mob-count');
+  if(cnt) cnt.textContent=mob.length+' مواطن';
+  var el=document.getElementById('mob-list'); if(!el) return;
+  if(!mob.length){el.innerHTML='<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px;">لا يوجد مبسّطون بعد</div>';return;}
+  el.innerHTML=mob.map(function(a,i){
+    var last4=(a.national_id||'').slice(-4);
+    var typeL=a.request_type==='renew'?'تجديد':'إصدار جديد';
+    var fee=a.person_type==='child'?'50 ر.س':'100 ر.س';
+    var dayC=DAY_COLORS[getDay(a.job)]||'#555';
+    var phone=(a.phone||'').replace(/^0/,'966');
+    var msg='الجالية السودانية بجازان\n\nالاخ/الاخت: '+a.full_name+' (****'+last4+')\n\n'
+      +'تم اعتماد طلبكم رقم '+a.ref_num+'\n'
+      +'الخدمة: '+typeL+' جواز السفر\n\n'
+      +'موعد الحضور: '+getDay(a.job)+'\n'
+      +'المكان: مقر الجالية السودانية - جازان\n'
+      +'الرسوم: '+fee+'\n\n'
+      +'يرجى احضار جميع الوثائق الاصلية';
+    var waLink='https://wa.me/'+phone+'?text='+encodeURIComponent(msg);
+    return '<div class="mob-item">'
+      +'<div class="mob-num">'+(i+1)+'</div>'
+      +'<div style="flex:1;min-width:0;">'
+      +'<div class="mob-name">'+a.full_name+' <span style="color:var(--muted);font-size:9px;">(****'+last4+')</span></div>'
+      +'<div class="mob-meta">'+a.phone+' · '+a.area+' · '+typeL+' · '+fee+'</div>'
+      +'</div>'
+      +'<div class="mob-day" style="background:'+dayC+'22;color:'+dayC+';">📅 '+getDay(a.job)+'</div>'
+      +'<div class="mob-btns">'
+      +'<a href="'+waLink+'" target="_blank" class="wa-btn">💬 واتساب</a>'
+      +'<button class="ibtn" data-id="'+a.id+'" onclick="printTabseet(this.dataset.id)">🖨️</button>'
+      +'<button class="ibtn" data-id="'+a.id+'" data-st="processing" onclick="updStatus(this.dataset.id,this.dataset.st)" style="color:var(--gl);">نقل ←</button>'
+      +'</div>'
+      +'</div>';
+  }).join('');
+}
+
+function printMobList(){
+  var mob=allApps.filter(function(a){return a.status==='tabseet_approved';});
+  if(!mob.length){toast('لا يوجد مبسّطون','warn');return;}
+  var today=new Date().toLocaleDateString('ar-SA',{year:'numeric',month:'long',day:'numeric'});
+  var rows=mob.map(function(a,i){
+    var last4=(a.national_id||'').slice(-4);
+    var fee=a.person_type==='child'?'50 ر.س':'100 ر.س';
+    var typeL=a.request_type==='renew'?'تجديد':'إصدار جديد';
+    return '<tr><td>'+(i+1)+'</td><td style="font-weight:700;">'+a.full_name+'</td>'
+      +'<td style="direction:ltr;">'+a.phone+'</td>'
+      +'<td style="text-align:center;font-family:monospace;">****'+last4+'</td>'
+      +'<td>'+a.area+'</td><td>'+typeL+'</td>'
+      +'<td style="color:'+DAY_COLORS[getDay(a.job)]+';">'+getDay(a.job)+'</td>'
+      +'<td>'+fee+'</td><td></td></tr>';
+  }).join('');
+  var html='<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"/>'
+    +'<title>قائمة المبسّطين</title>'
+    +'<style>@import url(\'https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;800;900&display=swap\');'
+    +'*{box-sizing:border-box;margin:0;padding:0;}'
+    +'body{font-family:Tajawal,Arial;direction:rtl;padding:15mm;color:#000;}'
+    +'@page{size:A4;margin:15mm;}'
+    +'.hdr{border-bottom:3px solid #1a3d2b;padding-bottom:10px;margin-bottom:14px;display:flex;justify-content:space-between;}'
+    +'.hdr h1{font-size:17px;font-weight:900;color:#1a3d2b;}'
+    +'.hdr p{font-size:11px;color:#555;margin-top:3px;}'
+    +'.title-bar{background:#1a3d2b;color:#fff;padding:9px;text-align:center;border-radius:4px;margin-bottom:11px;}'
+    +'.info{background:#e8f5ee;border:1px solid #c8e6d4;padding:7px 12px;border-radius:4px;margin-bottom:11px;font-size:11px;color:#1a3d2b;}'
+    +'table{width:100%;border-collapse:collapse;font-size:11px;}'
+    +'th{background:#1a3d2b;color:#fff;padding:7px 10px;text-align:right;font-size:10px;}'
+    +'td{padding:7px 10px;border-bottom:1px solid #eee;}'
+    +'tr:nth-child(even) td{background:#f9f9f9;}'
+    +'.sigs{display:flex;justify-content:space-between;margin-top:22px;}'
+    +'.sig{text-align:center;width:30%;}'
+    +'.sig-line{border-top:1px solid #333;margin-top:28px;padding-top:4px;font-size:10px;}'
+    +'.foot{text-align:center;font-size:9px;color:#888;margin-top:12px;border-top:1px dashed #ccc;padding-top:7px;}'
+    +'</style></head><body>'
+    +'<div class="hdr"><div><h1>الجالية السودانية بجازان</h1><p>قسم الجوازات وشؤون المواطنين</p></div>'
+    +'<div style="text-align:left;font-size:10px;color:#555;"><div>'+today+'</div><div>المبسّطون: '+mob.length+' شخص</div></div></div>'
+    +'<div class="title-bar"><h2 style="font-size:15px;font-weight:800;">قائمة المواطنين المبسّطين — مدعوون للحضور</h2></div>'
+    +'<div class="info">&#x1F4CB; يُرجى التواصل مع هؤلاء المواطنين وإخبارهم بالحضور لمقر الجالية لسداد الرسوم والتصوير.</div>'
+    +'<table><thead><tr><th>#</th><th>الاسم</th><th>الجوال</th><th>آخر 4 وطني</th><th>المنطقة</th><th>النوع</th><th>اليوم</th><th>الرسوم</th><th>التوقيع</th></tr></thead>'
+    +'<tbody>'+rows+'</tbody>'
+    +'<tfoot><tr style="background:#e8f5ee;font-weight:800;"><td colspan="8" style="padding:7px 10px;">الإجمالي: '+mob.length+' شخص</td><td></td></tr></tfoot></table>'
+    +'<div class="sigs"><div class="sig"><div class="sig-line">مسؤول الجوازات</div></div>'
+    +'<div class="sig"><div class="sig-line">ختم الجالية</div></div>'
+    +'<div class="sig"><div class="sig-line">رئيس الجالية</div></div></div>'
+    +'<div class="foot">الجالية السودانية بجازان | قائمة المبسّطين | '+today+'</div>'
+    +'<scr'+'ipt>window.onload=function(){setTimeout(function(){window.print();},500);}<'+'/script>'
+    +'</body></html>';
+  var win=window.open('','_blank');win.document.write(html);win.document.close();
+  toast('🖨️ جاري الطباعة','ok');
+}
+
+/* ══ REPORTS ══ */
+function buildReport(){
+  var day=document.getElementById('rep-day')?document.getElementById('rep-day').value:'';
+  var statusF=document.getElementById('rep-status')?document.getElementById('rep-status').value:'tabseet_approved';
+  var repDate=document.getElementById('rep-date')?document.getElementById('rep-date').value:'';
+  var list=allApps.filter(function(a){
+    if(statusF==='tabseet_approved'&&a.status!=='tabseet_approved') return false;
+    if(day&&getDay(a.job)!==day) return false;
+    return true;
+  });
+  var today=new Date();
+  var dateStr=repDate||today.toLocaleDateString('ar-SA',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  var dayLabel=day||'موعد مفتوح';
+  var org='الجالية السودانية بجازان';
+  document.getElementById('rep-wa-card').style.display=list.length?'block':'none';
+  document.getElementById('rep-ind-card').style.display=list.length?'block':'none';
+  document.getElementById('rep-grp-card').style.display=list.length?'block':'none';
+  if(!list.length) return;
+
+  // WA Group Message
+  var waLines=['=== '+org+' ===',
+    '* اشعار حضور - طلبات جوازات السفر *','',
+    'يوم الحضور: '+dayLabel,
+    'التاريخ: '+dateStr,
+    'المكان: مقر الجالية السودانية - جازان','',
+    '* المطلوب عند الحضور:',
+    '- الاصول الرسمية لجميع الوثائق',
+    '- سداد الرسوم: بالغ 100 ر.س / طفل 50 ر.س',
+    '- الحضور في الموعد المحدد','',
+    'اجمالي المدعوين: '+list.length+' شخص',
+    '==========================='];
+  waMsg=waLines.join('\n');
+  document.getElementById('wa-preview').textContent=waMsg;
+
+  // Individual links
+  var indHtml=list.map(function(a,i){
+    var last4=(a.national_id||'').slice(-4);
+    var phone=(a.phone||'').replace(/^0/,'966');
+    var fee=a.person_type==='child'?'50 ريال (طفل)':'100 ريال (بالغ)';
+    var typeL=a.request_type==='renew'?'تجديد':'اصدار جديد';
+    var aptDay=getDay(a.job);
+    var dayC=DAY_COLORS[aptDay]||'#555';
+    var msg=org+'\n\nالسلام عليكم\n\n'
+      +'الاخ/الاخت: '+a.full_name+' (****'+last4+')\n\n'
+      +'تم اعتماد طلبكم رقم '+a.ref_num+'\n'
+      +'الخدمة: '+typeL+' جواز السفر السوداني\n\n'
+      +'--- موعد الحضور ---\n'
+      +'اليوم: '+aptDay+'\n'
+      +'التاريخ: '+dateStr+'\n'
+      +'المكان: مقر الجالية السودانية - جازان\n'
+      +'الرسوم: '+fee+'\n\n'
+      +'يرجى احضار جميع الوثائق الاصلية\n'
+      +'شكرا لتعاملكم مع الجالية السودانية';
+    var waLink='https://wa.me/'+phone+'?text='+encodeURIComponent(msg);
+    return '<div class="mob-item">'
+      +'<div class="mob-num">'+(i+1)+'</div>'
+      +'<div style="flex:1;min-width:0;">'
+      +'<div class="mob-name">'+a.full_name+' <span style="color:var(--muted);font-size:9px;">(****'+last4+')</span></div>'
+      +'<div class="mob-meta">'+a.phone+' · '+a.area+'</div>'
+      +'</div>'
+      +'<div class="mob-day" style="background:'+dayC+'22;color:'+dayC+';">'+aptDay+'</div>'
+      +'<div class="mob-btns">'
+      +'<a href="'+waLink+'" target="_blank" class="wa-btn">💬 إرسال</a>'
+      +'<button class="ibtn" onclick="copyTxt(\''+encodeURIComponent(msg)+'\')">📋</button>'
+      +'</div>'
+      +'</div>';
+  }).join('');
+  document.getElementById('rep-ind-list').innerHTML=indHtml;
+
+  // Group report
+  var gLines=['=== قائمة حضور جوازات السفر السودانية ===',org+' | '+dayLabel+' | '+dateStr,''];
+  list.forEach(function(a,i){
+    var last4=(a.national_id||'').slice(-4);
+    var fee=a.person_type==='child'?'50 ر.س':'100 ر.س';
+    var typeL=a.request_type==='renew'?'تجديد':'اصدار جديد';
+    gLines.push((i+1)+'. '+a.full_name+' (****'+last4+')');
+    gLines.push('   '+a.phone+' | '+(a.area||'—')+' | '+typeL+' | '+fee);
+    gLines.push('');
+  });
+  gLines.push('الاجمالي: '+list.length+' شخص');
+  grpMsg=gLines.join('\n');
+  document.getElementById('grp-preview').textContent=grpMsg;
+}
+
+function printGroupReport(){
+  var day=document.getElementById('rep-day')?document.getElementById('rep-day').value:'';
+  var statusF=document.getElementById('rep-status')?document.getElementById('rep-status').value:'tabseet_approved';
+  var list=allApps.filter(function(a){
+    if(statusF==='tabseet_approved'&&a.status!=='tabseet_approved') return false;
+    if(day&&getDay(a.job)!==day) return false;
+    return true;
+  });
+  var today=new Date().toLocaleDateString('ar-SA',{year:'numeric',month:'long',day:'numeric'});
+  var rows=list.map(function(a,i){
+    var last4=(a.national_id||'').slice(-4);
+    var fee=a.person_type==='child'?'50 ر.س':'100 ر.س';
+    var typeL=a.request_type==='renew'?'تجديد':'اصدار جديد';
+    var dayC=DAY_COLORS[getDay(a.job)]||'#555';
+    return '<tr><td>'+(i+1)+'</td><td style="font-weight:700;">'+a.full_name+'</td>'
+      +'<td style="direction:ltr;">'+a.phone+'</td>'
+      +'<td style="text-align:center;font-family:monospace;">****'+last4+'</td>'
+      +'<td>'+a.area+'</td><td>'+typeL+'</td>'
+      +'<td style="color:'+dayC+';font-weight:700;">'+getDay(a.job)+'</td>'
+      +'<td>'+fee+'</td></tr>';
+  }).join('');
+  var html='<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"/>'
+    +'<title>تقرير الحضور</title>'
+    +'<style>@import url(\'https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;800;900&display=swap\');'
+    +'*{box-sizing:border-box;margin:0;padding:0;}'
+    +'body{font-family:Tajawal,Arial;direction:rtl;padding:15mm;}'
+    +'@page{size:A4;margin:15mm;}'
+    +'.hdr{border-bottom:3px solid #1a3d2b;padding-bottom:10px;margin-bottom:12px;display:flex;justify-content:space-between;}'
+    +'.hdr h1{font-size:16px;font-weight:900;color:#1a3d2b;}'
+    +'.hdr p{font-size:10px;color:#555;}'
+    +'.tb{background:#1a3d2b;color:#fff;padding:8px;text-align:center;border-radius:4px;margin-bottom:10px;font-size:14px;font-weight:800;}'
+    +'table{width:100%;border-collapse:collapse;font-size:11px;}'
+    +'th{background:#1a3d2b;color:#fff;padding:7px 10px;text-align:right;font-size:10px;}'
+    +'td{padding:7px 10px;border-bottom:1px solid #eee;}'
+    +'tr:nth-child(even) td{background:#f9f9f9;}'
+    +'.sigs{display:flex;justify-content:space-between;margin-top:20px;}'
+    +'.sig{text-align:center;width:30%;}'
+    +'.sig-line{border-top:1px solid #333;margin-top:26px;padding-top:4px;font-size:9px;}'
+    +'.foot{text-align:center;font-size:9px;color:#888;margin-top:10px;}'
+    +'</style></head><body>'
+    +'<div class="hdr"><div><h1>الجالية السودانية بجازان</h1><p>قسم الجوازات وشؤون المواطنين</p></div>'
+    +'<div style="text-align:left;font-size:10px;color:#555;"><div>'+today+'</div><div>'+list.length+' شخص</div></div></div>'
+    +'<div class="tb">تقرير الحضور — طلبات جوازات السفر السودانية</div>'
+    +'<table><thead><tr><th>#</th><th>الاسم</th><th>الجوال</th><th>آخر 4 وطني</th><th>المنطقة</th><th>النوع</th><th>اليوم</th><th>الرسوم</th></tr></thead>'
+    +'<tbody>'+rows+'</tbody>'
+    +'<tfoot><tr style="background:#e8f5ee;font-weight:800;"><td colspan="7" style="padding:7px 10px;">الإجمالي</td><td style="padding:7px 10px;">'+list.length+' شخص</td></tr></tfoot>'
+    +'</table>'
+    +'<div class="sigs"><div class="sig"><div class="sig-line">مسؤول الجوازات</div></div>'
+    +'<div class="sig"><div class="sig-line">ختم الجالية</div></div>'
+    +'<div class="sig"><div class="sig-line">رئيس الجالية</div></div></div>'
+    +'<div class="foot">الجالية السودانية بجازان | '+today+'</div>'
+    +'<scr'+'ipt>window.onload=function(){setTimeout(function(){window.print();},500);}<'+'/script>'
+    +'</body></html>';
+  var win=window.open('','_blank');win.document.write(html);win.document.close();
+  toast('🖨️ جاري الطباعة','ok');
+}
+
+function copyWA(){navigator.clipboard.writeText(waMsg).then(function(){toast('✅ تم نسخ رسالة واتساب','ok');}).catch(function(){toast('تعذر النسخ','err');});}
+function openWA(){window.open('https://wa.me/?text='+encodeURIComponent(waMsg),'_blank');}
+function copyGrp(){navigator.clipboard.writeText(grpMsg).then(function(){toast('✅ تم نسخ تقرير المجموعة','ok');}).catch(function(){toast('تعذر النسخ','err');});}
+function copyTxt(enc){navigator.clipboard.writeText(decodeURIComponent(enc)).then(function(){toast('✅ تم النسخ','ok');}).catch(function(){toast('تعذر النسخ','err');});}
+
+/* ══ TAB SWITCH ══ */
+function switchTab(t){
+  document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});
+  document.querySelectorAll('.tab').forEach(function(b){b.classList.remove('active');});
+  var sc=document.getElementById('sc-'+t); if(sc) sc.classList.add('active');
+  var tb=document.getElementById('tb-'+t); if(tb) tb.classList.add('active');
+  if(t==='mob') renderMob();
+  if(t==='rep') buildReport();
+}
+
+/* ══ HELPERS ══ */
+function animNum(id,val){var el=document.getElementById(id);if(!el)return;var s=0,step=val/30;var t=setInterval(function(){s=Math.min(s+step,val);el.textContent=Math.round(s).toLocaleString('ar-SA');if(s>=val)clearInterval(t);},20);}
+function toast(msg,type){var t=document.getElementById('toast');t.textContent=msg;t.className='toast '+(type||'ok')+' show';setTimeout(function(){t.classList.remove('show');},3000);}
+
+
+
+/* ══ REVIEW OVERLAY ══ */
+var currentReviewId = null;
+var rejReasonSelected = '';
+
+function openReview(id){
+  var a = allApps.find(function(x){return x.id===id;}); if(!a) return;
+  currentReviewId = id;
+  document.getElementById('rev-title').textContent = 'مراجعة — '+a.full_name;
+  document.getElementById('rev-ref').textContent = a.ref_num+' · '+(new Date(a.created_at)).toLocaleDateString('ar-SA');
+  var stColors={pending:'#e67e22',processing:'#1a5fa8',tabseet_approved:'#1D9E75',ready:'#1D9E75',cancelled:'#e74c3c'};
+  var stLabels={pending:'⏳ بانتظار',processing:'⚙️ معالجة',tabseet_approved:'✅ تم التبسيط',ready:'جاهز',cancelled:'ملغي'};
+  var stBadge=document.getElementById('rev-status-badge');
+  stBadge.innerHTML='<span style="background:'+(stColors[a.status]||'#555')+'22;color:'+(stColors[a.status]||'#aaa')+';border:1px solid '+(stColors[a.status]||'#555')+'44;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:800;">'+(stLabels[a.status]||a.status)+'</span>';
+  var gL=a.gender==='male'?'ذكر':'أنثى';
+  var typeL=a.request_type==='renew'?'🔄 تجديد':'✨ إصدار جديد';
+  var fee=a.person_type==='child'?'50 ريال (طفل)':'100 ريال (بالغ)';
+  var dayC={'الأحد':'#1a5fa8','الاثنين':'#2e6b4f','الثلاثاء':'#6c3483','الأربعاء':'#e67e22','الخميس':'#c0392b'};
+  var dc=dayC[getDay(a.job||'')]||'#555';
+  var last4=(a.national_id||'').slice(-4);
+
+  var bodyHtml =
+    '<div class="rev-section">'
+    +'<div class="rev-section-title">البيانات</div>'
+    +'<div class="rev-row"><span class="rev-lbl">الاسم</span><span class="rev-val">'+a.full_name+'</span></div>'
+    +'<div class="rev-row"><span class="rev-lbl">الرقم الوطني</span><span class="rev-val" style="direction:ltr;font-family:monospace;">'+a.national_id+'</span></div>'
+    +'<div class="rev-row"><span class="rev-lbl">الجوال</span><span class="rev-val" style="direction:ltr;">'+a.phone+'</span></div>'
+    +'<div class="rev-row"><span class="rev-lbl">تاريخ الميلاد</span><span class="rev-val">'+a.dob+' ('+(a.age||calcAge(a.dob)||'?')+' سنة)</span></div>'
+    +'<div class="rev-row"><span class="rev-lbl">الجنس</span><span class="rev-val">'+gL+'</span></div>'
+    +'<div class="rev-row"><span class="rev-lbl">المنطقة</span><span class="rev-val">'+a.area+'</span></div>'
+    +'<div class="rev-row"><span class="rev-lbl">المهنة</span><span class="rev-val">'+getJobLbl(a.job||'')+'</span></div>'
+    +'<div class="rev-row"><span class="rev-lbl">نوع الطلب</span><span class="rev-val">'+typeL+'</span></div>'
+    +'<div class="rev-row"><span class="rev-lbl">المستفيد</span><span class="rev-val">'+(a.person_type==='child'?'👶 طفل':'🧑 بالغ')+' — '+fee+'</span></div>'
+    +'<div class="rev-row"><span class="rev-lbl">📅 يوم الموعد</span><span class="rev-val" style="color:'+dc+';font-weight:800;">'+getDay(a.job||'')+'</span></div>'
+    +'</div>'
+
+    +'<div>'
+    +'<div class="rev-section" style="margin-bottom:10px;">'
+    +'<div class="rev-section-title">الوثائق المرفقة</div>'
+    +(a.personal_photo?
+      '<div class="rev-img-box" data-src="'+a.personal_photo+'" onclick="openLightbox(this.dataset.src)">'
+      +'<img src="'+a.personal_photo+'" alt="صورة شخصية"/>'
+      +'<div class="rev-img-lbl">📸 الصورة الشخصية — انقر للتكبير</div>'
+      +'</div>'
+    :'<div style="background:rgba(192,57,43,.1);border:1px solid rgba(192,57,43,.3);border-radius:8px;padding:10px;text-align:center;color:#e74c3c;font-size:12px;margin-bottom:8px;">⚠️ لم ترفق صورة شخصية</div>')
+    +(a.passport_doc?
+      '<div class="rev-img-box" data-src="'+a.passport_doc+'" onclick="openLightbox(this.dataset.src)">'
+      +'<img src="'+a.passport_doc+'" alt="صورة الجواز"/>'
+      +'<div class="rev-img-lbl">📄 صورة الجواز — انقر للتكبير</div>'
+      +'</div>'
+    :'<div style="background:rgba(192,57,43,.1);border:1px solid rgba(192,57,43,.3);border-radius:8px;padding:10px;text-align:center;color:#e74c3c;font-size:12px;margin-bottom:8px;">⚠️ لم ترفق صورة الجواز</div>')
+    +(a.guardian_doc?
+      '<div class="rev-img-box" data-src="'+a.guardian_doc+'" onclick="openLightbox(this.dataset.src)">'
+      +'<img src="'+a.guardian_doc+'" alt="هوية الوصي"/>'
+      +'<div class="rev-img-lbl">🪪 هوية الوصي — انقر للتكبير</div>'
+      +'</div>'
+    :'')
+    +'</div>'
+
+    +(a.status==='pending'?
+      '<div class="rev-actions">'
+      +'<div style="color:rgba(255,255,255,.6);font-size:11px;font-weight:700;margin-bottom:6px;">قرار الاستقبال</div>'
+      +'<button class="rev-accept-btn" data-id="'+a.id+'" onclick="acceptFromReception(this.dataset.id)">✅ قبول الطلب</button>'
+      +'<div class="rev-reject-section">'
+      +'<div class="rev-reject-title">❌ رفض وإرسال واتساب</div>'
+      +'<div class="rev-reject-reasons">'
+      +'<button class="rev-reason-btn" data-reason="صورة الجواز غير واضحة" onclick="selReason(this,this.dataset.reason)">صورة غير واضحة</button>'
+      +'<button class="rev-reason-btn" data-reason="بيانات ناقصة" onclick="selReason(this,this.dataset.reason)">بيانات ناقصة</button>'
+      +'<button class="rev-reason-btn" data-reason="الصورة الشخصية غير مقبولة" onclick="selReason(this,this.dataset.reason)">صورة شخصية</button>'
+      +'<button class="rev-reason-btn" data-reason="وثائق غير مكتملة" onclick="selReason(this,this.dataset.reason)">وثائق ناقصة</button>'
+      +'</div>'
+      +'<textarea class="rev-notes" id="reject-notes" placeholder="أو اكتب سبب الرفض..."></textarea>'
+      +'<button class="rev-reject-btn" data-id="'+a.id+'" onclick="rejectFromReception(this.dataset.id)">❌ رفض وإرسال واتساب</button>'
+      +'</div>'
+      +'</div>'
+    :'<div style="background:rgba(46,107,79,.1);border:1px solid rgba(46,107,79,.3);border-radius:8px;padding:12px;text-align:center;color:#4caf50;font-size:13px;font-weight:700;">✅ تمت المراجعة: '+(stLabels[a.status]||a.status)+'</div>')
+    +'</div>';
+
+  document.getElementById('rev-body').innerHTML = bodyHtml;
+  var ov = document.getElementById('review-overlay');
+  if(ov){ ov.style.display='flex'; }
+}
+
+function closeReview(){
+  var ov=document.getElementById('review-overlay');
+  if(ov){ ov.style.display='none'; }
+  currentReviewId=null; rejReasonSelected='';
+}
+
+function selReason(btn, reason){
+  rejReasonSelected=reason;
+  document.querySelectorAll('.rev-reason-btn').forEach(function(b){b.classList.remove('sel');});
+  btn.classList.add('sel');
+  var n=document.getElementById('reject-notes');
+  if(n) n.value=reason;
+}
+
+function openLightbox(src){
+  var lb=document.getElementById('lightbox');
+  var img=document.getElementById('lightbox-img');
+  if(lb&&img){ img.src=src; lb.style.display='flex'; }
+}
+function closeLightbox(){
+  var lb=document.getElementById('lightbox');
+  if(lb){ lb.style.display='none'; }
+}
+
+function calcAge(dob){
+  if(!dob) return null;
+  var t=new Date(),b=new Date(dob),a=t.getFullYear()-b.getFullYear();
+  if(t.getMonth()<b.getMonth()||(t.getMonth()===b.getMonth()&&t.getDate()<b.getDate())) a--;
+  return a;
+}
+
+
+
+/* ══ MISSION SCHEDULER ══ */
+var scheduledMission = {venue:'',date:'',time:'',notes:''};
+
+function saveMissionDetails(){
+  var v=document.getElementById('mission-venue').value.trim();
+  var d=document.getElementById('mission-date').value;
+  var t=document.getElementById('mission-time').value;
+  var n=document.getElementById('mission-notes').value.trim();
+  if(!v||!d){ toast('أدخل المكان والتاريخ','err'); return; }
+  scheduledMission={venue:v,date:d,time:t,notes:n};
+  try{ localStorage.setItem('mission',JSON.stringify(scheduledMission)); }catch(e){}
+  toast('✅ تم حفظ تفاصيل البعثة','ok');
+  buildReport();
+}
+
+function loadMissionDetails(){
+  try{
+    var s=localStorage.getItem('mission');
+    if(s){
+      scheduledMission=JSON.parse(s);
+      var fields=['mission-venue','mission-date','mission-time','mission-notes'];
+      var keys=['venue','date','time','notes'];
+      fields.forEach(function(id,i){
+        var el=document.getElementById(id);
+        if(el) el.value=scheduledMission[keys[i]]||'';
+      });
+    }
+  }catch(e){}
+}
+
+function getJobGroup(job){
+  if(['doctor','nurse','pharmacist','health_other'].indexOf(job)>=0) return 'health';
+  if(['engineer','tech','tech_other'].indexOf(job)>=0) return 'engineering';
+  if(['gov_employee','military','teacher_gov'].indexOf(job)>=0) return 'government';
+  if(['private_employee','business','teacher_private'].indexOf(job)>=0) return 'private';
+  return 'other';
+}
+
+function buildReport(){
+  var day=document.getElementById('rep-day')?document.getElementById('rep-day').value:'';
+  var statusF=document.getElementById('rep-status')?document.getElementById('rep-status').value:'tabseet_approved';
+  var filterArea=document.getElementById('rep-area')?document.getElementById('rep-area').value:'';
+  var filterJob=document.getElementById('rep-job-grp')?document.getElementById('rep-job-grp').value:'';
+
+  var list=allApps.filter(function(a){
+    if(statusF==='tabseet_approved'&&a.status!=='tabseet_approved') return false;
+    if(day&&getDay(a.job||'')!==day) return false;
+    if(filterArea&&a.area!==filterArea) return false;
+    if(filterJob&&getJobGroup(a.job||'')!==filterJob) return false;
+    return true;
+  });
+
+  var cntEl=document.getElementById('rep-count');
+  if(cntEl) cntEl.textContent=list.length+' شخص';
+  document.getElementById('rep-wa-card').style.display=list.length?'block':'none';
+  document.getElementById('rep-ind-card').style.display=list.length?'block':'none';
+  document.getElementById('rep-grp-card').style.display=list.length?'block':'none';
+  var emEl=document.getElementById('rep-empty');
+  if(emEl) emEl.style.display=list.length?'none':'block';
+  if(!list.length) return;
+
+  var venue=scheduledMission.venue||'سيتم الإعلان قريباً';
+  var dateStr=scheduledMission.date
+    ? new Date(scheduledMission.date).toLocaleDateString('ar-SA',{weekday:'long',year:'numeric',month:'long',day:'numeric'})
+    : 'سيتم التحديد لاحقاً';
+  var timeStr=scheduledMission.time?' الساعة '+scheduledMission.time:'';
+  var org='الجالية السودانية بجازان';
+
+  var waLines=['=== '+org+' ===','',
+    '* اشعار بعثة جوازات السفر السودانية *','',
+    'يسعدنا اعلامكم بوصول البعثة:',
+    'التاريخ: '+dateStr+timeStr,
+    'المكان: '+venue,'',
+    'المطلوب: الاصول الرسمية + سداد الرسوم',
+    '(بالغ: 100 ر.س | طفل: 50 ر.س)',
+    '',
+    (scheduledMission.notes?'ملاحظات: '+scheduledMission.notes:''),
+    'عدد المدعوين: '+list.length+' شخص',
+    '========================='];
+  waMsg=waLines.filter(function(l){return l!==undefined;}).join('
+');
+  document.getElementById('wa-preview').textContent=waMsg;
+
+  window._personalMsgs={};
+  var indHtml=list.map(function(a,i){
+    var last4=(a.national_id||'').slice(-4);
+    var phone=(a.phone||'').replace(/^0/,'966');
+    var fee=a.person_type==='child'?'50 ريال (طفل)':'100 ريال (بالغ)';
+    var typeL=a.request_type==='renew'?'تجديد':'اصدار جديد';
+    var msg='=== '+org+' ===
+
+'
+      +'السلام عليكم '+a.full_name+' (****'+last4+')
+
+'
+      +'طلبكم رقم: '+a.ref_num+'
+'
+      +'الخدمة: '+typeL+'
+
+'
+      +'موعد الحضور:
+'
+      +'التاريخ: '+dateStr+timeStr+'
+'
+      +'المكان: '+venue+'
+'
+      +'الرسوم: '+fee+'
+
+'
+      +'يرجى احضار الاصول الرسمية
+'
+      +(scheduledMission.notes?'ملاحظات: '+scheduledMission.notes+'
+':'')
+      +'
+شكرا لتعاملكم مع الجالية السودانية';
+    window._personalMsgs[a.id]=msg;
+    var encoded=encodeURIComponent(msg);
+    var waLink='https://wa.me/'+phone+'?text='+encoded;
+    var dayC={'الأحد':'#1a5fa8','الاثنين':'#2e6b4f','الثلاثاء':'#6c3483','الأربعاء':'#e67e22','الخميس':'#c0392b'};
+    var dc=dayC[getDay(a.job||'')]||'#555';
+    return '<div class="mob-item">'
+      +'<div class="mob-num">'+(i+1)+'</div>'
+      +'<div style="flex:1;min-width:0;"><div class="mob-name">'+a.full_name+' <span style="color:var(--muted);font-size:9px;">(****'+last4+')</span></div>'
+      +'<div class="mob-meta">'+a.phone+' &middot; '+a.area+' &middot; '+fee+'</div></div>'
+      +'<div class="mob-day" style="background:'+dc+'22;color:'+dc+';">'+getDay(a.job||'')+'</div>'
+      +'<div class="mob-btns">'
+      +'<a href="'+waLink+'" target="_blank" class="wa-btn">&#x1F4AC; ارسال</a>'
+      +'<button class="ibtn" data-msg="'+encoded+'" onclick="navigator.clipboard.writeText(decodeURIComponent(this.dataset.msg)).then(function(){toast('✅ تم النسخ','ok');})">&#x1F4CB;</button>'
+      +'</div></div>';
+  }).join('');
+  document.getElementById('rep-ind-list').innerHTML=indHtml;
+
+  var gLines=['=== قائمة حضور جوازات السفر ===',org,'التاريخ: '+dateStr+' | '+venue,''];
+  list.forEach(function(a,i){
+    var last4=(a.national_id||'').slice(-4);
+    var fee=a.person_type==='child'?'50 ر.س':'100 ر.س';
+    gLines.push((i+1)+'. '+a.full_name+' (****'+last4+')');
+    gLines.push('   '+a.phone+' | '+(a.area||'-')+' | '+fee);
+    gLines.push('');
+  });
+  gLines.push('الاجمالي: '+list.length+' شخص');
+  grpMsg=gLines.join('
+');
+  document.getElementById('grp-preview').textContent=grpMsg;
+}
+
+function copyWA(){navigator.clipboard.writeText(waMsg).then(function(){toast('✅ تم النسخ','ok');}).catch(function(){toast('تعذر النسخ','err');});}
+function openWA(){window.open('https://wa.me/?text='+encodeURIComponent(waMsg),'_blank');}
+function copyGrp(){navigator.clipboard.writeText(grpMsg).then(function(){toast('✅ تم نسخ تقرير القروب','ok');}).catch(function(){toast('تعذر النسخ','err');});}
+
+
+function showToast(m,t){toast(m,t);}
+</script>
+</body>
+</html>
