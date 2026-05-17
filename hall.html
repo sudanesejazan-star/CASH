@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>لوحة تحكم الصالة — الجالية السودانية بجازان</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap');
+:root{
+  --gd:#0f2419;--gm:#1a3d2b;--gl:#2e6b4f;--gp:#e8f5ee;--gpp:#c8e6d4;
+  --gold:#c9a84c;--gold-l:#f5e9c8;--gold-d:#8a6010;
+  --blue:#1a5fa8;--blue-p:#e8f0fb;
+  --red:#c0392b;--red-p:#fdf0ee;
+  --orange:#e67e22;--orange-p:#fef5ec;
+  --purple:#8e44ad;
+  --ink:#1c2a22;--muted:#6b7c74;--border:#d4e0d9;--surf:#f0f7f3;--white:#fff;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Tajawal',Arial,sans-serif;background:#0a1a10;color:#fff;min-height:100vh;}
+button,input,select{font-family:'Tajawal',Arial,sans-serif;}
+.toast{position:fixed;top:14px;left:50%;transform:translateX(-50%) translateY(-20px);padding:9px 20px;border-radius:25px;font-size:12px;font-weight:700;opacity:0;transition:all .3s;z-index:9999;pointer-events:none;box-shadow:0 4px 16px rgba(0,0,0,.4);}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.ok{background:#1D9E75;color:#fff;}.toast.err{background:var(--red);color:#fff;}.toast.warn{background:var(--gold-d);color:#fff;}
+/* LOGIN */
+.login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:linear-gradient(160deg,#0a1a10,#1a3d2b);}
+.login-card{width:100%;max-width:360px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);border-radius:16px;padding:24px 20px;}
+.l-logo{width:60px;height:60px;background:var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 14px;}
+.l-title{color:#fff;font-size:17px;font-weight:900;text-align:center;margin-bottom:3px;}
+.l-sub{color:rgba(255,255,255,.5);font-size:11px;text-align:center;margin-bottom:18px;}
+.l-err{display:none;background:rgba(192,57,43,.25);border:1px solid rgba(192,57,43,.4);border-radius:7px;padding:8px 11px;font-size:12px;color:#e74c3c;text-align:center;margin-bottom:11px;}
+.l-err.show{display:block;}
+.l-label{display:block;font-size:10px;color:rgba(255,255,255,.55);font-weight:700;margin-bottom:4px;}
+.l-inp{width:100%;background:rgba(0,0,0,.3);border:1.5px solid rgba(255,255,255,.14);border-radius:8px;padding:11px 12px;font-size:14px;color:#fff;outline:none;box-sizing:border-box;direction:ltr;}
+.l-inp:focus{border-color:var(--gold);}
+.l-btn{width:100%;padding:12px;background:linear-gradient(135deg,#1D9E75,#0f6e56);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:800;cursor:pointer;margin-top:12px;}
+/* APP */
+.app-wrap{display:flex;flex-direction:column;min-height:100vh;}
+.app-hdr{background:linear-gradient(135deg,#0a1a10,#1a3d2b);padding:0 16px;height:50px;display:flex;align-items:center;gap:10px;flex-shrink:0;border-bottom:2px solid var(--gold);}
+.hdr-logo{font-size:20px;}
+.hdr-brand h1{color:#fff;font-size:13px;font-weight:900;}
+.hdr-brand p{color:var(--gold);font-size:9px;}
+.hdr-right{margin-right:auto;display:flex;gap:6px;align-items:center;}
+.hdr-date{color:rgba(255,255,255,.5);font-size:10px;}
+.btn-sm{padding:4px 10px;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;border:none;}
+.tab-bar{background:#0f2419;display:flex;overflow-x:auto;border-bottom:1px solid rgba(201,168,76,.2);scrollbar-width:none;}
+.tab-bar::-webkit-scrollbar{display:none;}
+.tab{padding:0 14px;height:40px;color:rgba(255,255,255,.45);font-size:11px;font-weight:700;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;font-family:Tajawal,Arial;background:none;border-top:none;border-left:none;border-right:none;transition:all .2s;display:flex;align-items:center;gap:4px;}
+.tab.active{color:var(--gold);border-bottom-color:var(--gold);}
+.screens{flex:1;overflow-y:auto;}
+.screen{display:none;padding:14px;max-width:1100px;margin:0 auto;}
+.screen.active{display:block;}
+/* KPI */
+.kpi-row{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px;}
+@media(min-width:500px){.kpi-row{grid-template-columns:repeat(4,1fr);}}
+@media(min-width:800px){.kpi-row{grid-template-columns:repeat(8,1fr);}}
+.kpi{background:rgba(255,255,255,.06);border-radius:10px;padding:12px 8px;text-align:center;border-top:3px solid var(--gl);}
+.kpi-val{font-size:22px;font-weight:900;line-height:1;}
+.kpi-lbl{font-size:9px;color:rgba(255,255,255,.5);margin-top:3px;font-weight:600;}
+.kpi.gold{border-top-color:var(--gold);}.kpi.gold .kpi-val{color:var(--gold);}
+.kpi.blue{border-top-color:var(--blue);}.kpi.blue .kpi-val{color:#64a8e8;}
+.kpi.red{border-top-color:var(--red);}.kpi.red .kpi-val{color:#e87474;}
+.kpi.orange{border-top-color:var(--orange);}.kpi.orange .kpi-val{color:#f0b06a;}
+.kpi.purple{border-top-color:var(--purple);}.kpi.purple .kpi-val{color:#d4a8e8;}
+/* CARD */
+.card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);border-radius:12px;padding:14px;margin-bottom:12px;}
+.ctitle{font-size:12px;font-weight:800;color:var(--gold);margin-bottom:10px;display:flex;align-items:center;gap:5px;}
+.ctitle::before{content:'';width:3px;height:11px;background:var(--gold);border-radius:2px;}
+/* SCANNER */
+.scanner-box{background:rgba(0,0,0,.4);border:2px solid rgba(201,168,76,.3);border-radius:12px;overflow:hidden;margin-bottom:12px;}
+.scanner-hdr{background:rgba(201,168,76,.15);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;}
+.scanner-hdr-title{color:var(--gold);font-size:13px;font-weight:800;}
+.scanner-body{padding:14px;}
+#reader{width:100%;max-width:400px;margin:0 auto;border-radius:8px;overflow:hidden;}
+.scan-manual{display:flex;gap:8px;margin-top:10px;}
+.scan-inp{flex:1;background:rgba(0,0,0,.3);border:1.5px solid rgba(255,255,255,.15);border-radius:8px;padding:10px 12px;font-size:14px;color:#fff;outline:none;direction:ltr;}
+.scan-inp:focus{border-color:var(--gold);}
+.scan-btn{padding:10px 16px;background:var(--gold);color:var(--gd);border:none;border-radius:8px;font-size:12px;font-weight:800;cursor:pointer;flex-shrink:0;}
+/* CITIZEN CARD (after scan) */
+.cit-card{background:rgba(0,0,0,.3);border:1.5px solid rgba(255,255,255,.15);border-radius:12px;padding:14px;margin-top:10px;}
+.cit-name{font-size:17px;font-weight:900;margin-bottom:4px;}
+.cit-ref{font-size:11px;color:rgba(255,255,255,.5);font-family:monospace;}
+.cit-details{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px;font-size:12px;}
+.cit-detail{background:rgba(255,255,255,.06);border-radius:7px;padding:7px 9px;}
+.cd-lbl{color:rgba(255,255,255,.5);font-size:10px;margin-bottom:2px;}
+.cd-val{font-weight:700;}
+.stage-btns{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:12px;}
+.stage-btn{padding:11px;border:none;border-radius:8px;font-size:12px;font-weight:800;cursor:pointer;font-family:Tajawal,Arial;transition:all .15s;}
+.stage-btn:hover{filter:brightness(1.1);}
+.s-entry{background:#16a085;color:#fff;}
+.s-hall-fee{background:var(--gold-d);color:#fff;}
+.s-pass-fee{background:var(--blue);color:#fff;}
+.s-investigation{background:#5d6d7e;color:#fff;}
+.s-photography{background:var(--red);color:#fff;}
+.s-ready{background:var(--gm);color:#fff;}
+.s-urgent{background:#922b21;color:#fff;}
+/* LIVE TABLE */
+.live-table{width:100%;border-collapse:collapse;font-size:11px;}
+.live-table th{padding:8px 10px;background:rgba(255,255,255,.06);color:rgba(255,255,255,.5);text-align:right;border-bottom:1px solid rgba(255,255,255,.08);font-size:10px;font-weight:700;}
+.live-table td{padding:7px 10px;border-bottom:1px solid rgba(255,255,255,.05);vertical-align:middle;}
+.live-table tr:hover td{background:rgba(255,255,255,.04);}
+.stage-badge{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:10px;font-size:9px;font-weight:700;white-space:nowrap;}
+.sb-entry{background:rgba(22,160,133,.2);color:#4caf9a;}
+.sb-hall{background:rgba(201,168,76,.2);color:var(--gold);}
+.sb-pass{background:rgba(26,95,168,.2);color:#64a8e8;}
+.sb-inv{background:rgba(93,109,126,.2);color:#9ab0c2;}
+.sb-photo{background:rgba(192,57,43,.2);color:#e87474;}
+.sb-ready{background:rgba(46,107,79,.2);color:#7ec49c;}
+.sb-urgent{background:rgba(146,43,33,.3);color:#f19191;}
+.time-chip{font-size:9px;font-family:monospace;color:rgba(255,255,255,.4);background:rgba(255,255,255,.05);padding:2px 7px;border-radius:10px;}
+.elapsed{font-size:11px;font-weight:700;font-family:monospace;}
+.elapsed.fast{color:#4caf50;}
+.elapsed.mid{color:var(--gold);}
+.elapsed.slow{color:#e74c3c;}
+/* TIMER CHART */
+.chart-wrap{position:relative;height:200px;margin-bottom:12px;}
+/* URGENT SECTION */
+.urg-badge{background:linear-gradient(135deg,#922b21,#c0392b);color:#fff;padding:4px 12px;border-radius:20px;font-size:10px;font-weight:800;display:inline-flex;align-items:center;gap:4px;margin-bottom:8px;}
+.urg-form{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
+.urg-inp{background:rgba(0,0,0,.3);border:1.5px solid rgba(192,57,43,.4);border-radius:8px;padding:9px 11px;font-size:13px;color:#fff;outline:none;direction:ltr;width:100%;box-sizing:border-box;}
+.urg-inp:focus{border-color:#e74c3c;}
+.urg-btn{width:100%;padding:10px;background:linear-gradient(135deg,#c0392b,#922b21);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer;}
+/* STATS */
+.stat-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:12px;}
+.stat-row:last-child{border-bottom:none;}
+.stat-lbl{color:rgba(255,255,255,.5);font-size:11px;}
+.stat-val{font-weight:800;}
+.avg-chip{font-family:monospace;font-size:12px;font-weight:800;}
+.avg-fast{color:#4caf50;}.avg-mid{color:var(--gold);}.avg-slow{color:#e74c3c;}
+.ibtn{padding:4px 9px;border:1px solid rgba(255,255,255,.2);border-radius:6px;background:transparent;font-size:10px;cursor:pointer;color:rgba(255,255,255,.7);font-family:Tajawal,Arial;}
+.ibtn:hover{background:rgba(255,255,255,.08);}
+</style>
+</head>
+<body>
+<div class="toast" id="toast"></div>
+
+<!-- LOGIN -->
+<div id="login-screen" style="display:flex;min-height:100vh;">
+  <div class="login-screen" style="width:100%;">
+    <div class="login-card">
+      <div class="l-logo">🏛️</div>
+      <div class="l-title">لوحة تحكم الصالة</div>
+      <div class="l-sub">الجالية السودانية بجازان — الصالة الداخلية</div>
+      <div class="l-err" id="hall-err"></div>
+      <div style="margin-bottom:10px;"><label class="l-label">اسم المستخدم</label><input class="l-inp" id="hall-user" type="text" autocomplete="username" placeholder="username" onkeydown="if(event.key==='Enter')document.getElementById('hall-pw').focus()"/></div>
+      <div style="margin-bottom:4px;"><label class="l-label">كلمة المرور</label><input class="l-inp" id="hall-pw" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')hallLogin()"/></div>
+      <button class="l-btn" id="hall-login-btn" onclick="hallLogin()"><span id="hall-login-txt">دخول</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app-screen" style="display:none;" class="app-wrap">
+  <div class="app-hdr">
+    <div class="hdr-logo">🏛️</div>
+    <div class="hdr-brand"><h1>لوحة الصالة</h1><p>الجالية السودانية بجازان</p></div>
+    <div class="hdr-right">
+      <div class="hdr-date" id="hall-date"></div>
+      <button class="btn-sm" style="background:rgba(201,168,76,.2);border:1px solid var(--gold);color:var(--gold);" onclick="loadAll()">🔄</button>
+      <button class="btn-sm" style="background:rgba(192,57,43,.2);border:1px solid #e74c3c;color:#e74c3c;" onclick="hallLogout()">خروج</button>
+    </div>
+  </div>
+  <div class="tab-bar">
+    <button class="tab active" id="tab-scan" onclick="switchTab('scan')">📷 مسح QR</button>
+    <button class="tab" id="tab-live" onclick="switchTab('live')">🔴 الداخلون الآن</button>
+    <button class="tab" id="tab-urgent" onclick="switchTab('urgent')">🚨 حالات طارئة</button>
+    <button class="tab" id="tab-stats" onclick="switchTab('stats')">📊 إحصائيات</button>
+  </div>
+  <div class="screens">
+
+    <!-- ══ SCAN ══ -->
+    <div class="screen active" id="sc-scan">
+      <div class="kpi-row" id="kpi-row">
+        <div class="kpi"><div class="kpi-val" id="kp-total">0</div><div class="kpi-lbl">إجمالي اليوم</div></div>
+        <div class="kpi" style="border-top-color:#16a085;"><div class="kpi-val" style="color:#4caf9a;" id="kp-inside">0</div><div class="kpi-lbl">داخل الآن</div></div>
+        <div class="kpi gold"><div class="kpi-val" id="kp-hall">0</div><div class="kpi-lbl">سدّدوا الصالة</div></div>
+        <div class="kpi blue"><div class="kpi-val" id="kp-pass">0</div><div class="kpi-lbl">سدّدوا الجواز</div></div>
+        <div class="kpi" style="border-top-color:#5d6d7e;"><div class="kpi-val" style="color:#9ab0c2;" id="kp-inv">0</div><div class="kpi-lbl">التحري</div></div>
+        <div class="kpi" style="border-top-color:var(--red);"><div class="kpi-val" style="color:#e87474;" id="kp-photo">0</div><div class="kpi-lbl">التصوير</div></div>
+        <div class="kpi" style="border-top-color:var(--gm);"><div class="kpi-val" style="color:#7ec49c;" id="kp-ready">0</div><div class="kpi-lbl">جاهز</div></div>
+        <div class="kpi red"><div class="kpi-val" id="kp-urgent">0</div><div class="kpi-lbl">طارئ</div></div>
+      </div>
+
+      <div class="scanner-box">
+        <div class="scanner-hdr">
+          <div class="scanner-hdr-title">📷 مسح تصريح الدخول</div>
+          <button id="scan-toggle-btn" onclick="toggleScanner()" class="btn-sm" style="background:rgba(201,168,76,.2);border:1px solid var(--gold);color:var(--gold);">▶ تشغيل الكاميرا</button>
+        </div>
+        <div class="scanner-body">
+          <div id="reader"></div>
+          <div class="scan-manual">
+            <input class="scan-inp" id="scan-manual-inp" placeholder="أو اكتب رقم الطلب / الرقم الوطني يدوياً..." onkeydown="if(event.key==='Enter')manualSearch()"/>
+            <button class="scan-btn" onclick="manualSearch()">🔍 بحث</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="cit-result" style="display:none;"></div>
+    </div>
+
+    <!-- ══ LIVE ══ -->
+    <div class="screen" id="sc-live">
+      <div class="card">
+        <div class="ctitle">🔴 المواطنون داخل الصالة الآن</div>
+        <div style="overflow-x:auto;">
+          <table class="live-table">
+            <thead><tr>
+              <th>#</th><th>الاسم</th><th>الرقم الوطني</th>
+              <th>المرحلة</th><th>وقت الدخول</th><th>المدة</th><th>النوع</th><th>الرسوم</th><th>إجراء</th>
+            </tr></thead>
+            <tbody id="live-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ URGENT ══ -->
+    <div class="screen" id="sc-urgent">
+      <div class="card" style="border:1.5px solid rgba(192,57,43,.4);background:rgba(192,57,43,.07);">
+        <div class="ctitle" style="color:#e87474;">🚨 إضافة حالة طارئة</div>
+        <div style="font-size:12px;color:rgba(255,255,255,.55);margin-bottom:12px;line-height:1.7;">الحالات الطارئة هي مواطنون تم تبسيطهم في <strong style="color:#fff;">نفس يوم التقديم</strong> لظروف خاصة — يتم تخصيص موعد فوري لهم.</div>
+        <div class="urg-form">
+          <div><label style="display:block;font-size:10px;color:rgba(255,255,255,.5);font-weight:700;margin-bottom:4px;">الرقم الوطني</label><input class="urg-inp" id="urg-nid" type="text" inputmode="numeric" placeholder="11 رقم" maxlength="11" oninput="this.value=this.value.replace(/[^0-9]/g,'')"/></div>
+          <div><label style="display:block;font-size:10px;color:rgba(255,255,255,.5);font-weight:700;margin-bottom:4px;">رقم الطلب</label><input class="urg-inp" id="urg-ref" type="text" placeholder="JZ-XXXXXX"/></div>
+        </div>
+        <div style="margin-bottom:10px;"><label style="display:block;font-size:10px;color:rgba(255,255,255,.5);font-weight:700;margin-bottom:4px;">سبب الطوارئ</label><input class="urg-inp" id="urg-reason" type="text" placeholder="مثال: سفر طارئ، إجراء طبي عاجل..."/></div>
+        <button class="urg-btn" onclick="addUrgent()">🚨 تسجيل كحالة طارئة وتحديد موعد فوري</button>
+      </div>
+
+      <div class="card">
+        <div class="ctitle" style="color:#e87474;">🚨 الحالات الطارئة اليوم</div>
+        <div id="urgent-list"><div style="text-align:center;padding:20px;color:rgba(255,255,255,.3);font-size:12px;">لا توجد حالات طارئة اليوم</div></div>
+      </div>
+    </div>
+
+    <!-- ══ STATS ══ -->
+    <div class="screen" id="sc-stats">
+      <div style="display:grid;grid-template-columns:1fr;gap:12px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="card">
+            <div class="ctitle">⏱️ متوسط وقت كل مرحلة</div>
+            <div id="stage-times"></div>
+          </div>
+          <div class="card">
+            <div class="ctitle">📊 إجمالي اليوم</div>
+            <div id="daily-summary"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="ctitle">📈 توزيع الأوقات</div>
+          <div class="chart-wrap"><canvas id="ch-times"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+var SB='https://fivgglsoygkonqnsbzvl.supabase.co';
+var SK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpdmdnbHNveWdrb25xbnNienZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3NzQ1NjQsImV4cCI6MjA5NDM1MDU2NH0.hu5ExAyeMfy8JivJdiuY0CstI1FZc6lZK_D76DebAZE';
+var sb=null;
+var HALL_PW='Hall@Jazan2026';
+var apps=[];
+var scanner=null;
+var scannerRunning=false;
+var timerInterval=null;
+var statsChart=null;
+
+var STAGES=[
+  {key:'hall_entry',lbl:'دخل الصالة',cls:'sb-entry',icon:'🚪'},
+  {key:'hall_fee_paid',lbl:'سدّد الصالة',cls:'sb-hall',icon:'💳'},
+  {key:'passport_fee_paid',lbl:'سدّد الجواز',cls:'sb-pass',icon:'💰'},
+  {key:'investigation',lbl:'التحري',cls:'sb-inv',icon:'🔎'},
+  {key:'photography',lbl:'التصوير',cls:'sb-photo',icon:'📸'},
+  {key:'ready',lbl:'جاهز',cls:'sb-ready',icon:'✅'},
+];
+var STAGE_ORDER=['hall_entry','hall_fee_paid','passport_fee_paid','investigation','photography','ready','delivered'];
+var HALL_STATUSES=['hall_entry','hall_fee_paid','passport_fee_paid','investigation','photography','ready','urgent'];
+
+window.onload=function(){
+  try{sb=window.supabase.createClient(SB,SK,{auth:{persistSession:false}});}catch(e){}
+  updateDate();
+  setInterval(updateDate,60000);
+};
+
+function updateDate(){
+  var el=document.getElementById('hall-date');
+  if(el) el.textContent=new Date().toLocaleDateString('ar-SA',{weekday:'short',day:'numeric',month:'short'});
+}
+
+function toast(m,t){var el=document.getElementById('toast');el.textContent=m;el.className='toast '+(t||'ok')+' show';setTimeout(function(){el.classList.remove('show');},3500);}
+
+/* ══ LOGIN ══ */
+async function hallLogin(){
+  var user=(document.getElementById('hall-user').value||'').trim();
+  var pw=document.getElementById('hall-pw').value;
+  var err=document.getElementById('hall-err');err.classList.remove('show');
+  if(!user||!pw){err.textContent='أدخل اسم المستخدم وكلمة المرور';err.classList.add('show');return;}
+  var btn=document.getElementById('hall-login-btn');document.getElementById('hall-login-txt').textContent='⏳...';btn.disabled=true;
+  try{
+    var hash=await hashPw(pw);
+    var r=await sb.from('admins').select('*').eq('username',user).eq('active',true).single();
+    if(r.error||!r.data){err.textContent='بيانات الدخول غير صحيحة';err.classList.add('show');}
+    else{
+      var storedHash=r.data.password_hash;
+      if(storedHash!==hash){err.textContent='كلمة المرور غير صحيحة';err.classList.add('show');}
+      else{
+        document.getElementById('login-screen').style.display='none';
+        document.getElementById('app-screen').style.display='flex';
+        await loadAll();
+        initRealtime();
+        startElapsedTimer();
+      }
+    }
+  }catch(e){err.textContent='خطأ في الاتصال: '+e.message;err.classList.add('show');}
+  btn.disabled=false;document.getElementById('hall-login-txt').textContent='دخول';
+}
+
+async function hashPw(pw){var b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(pw));return Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,'0');}).join('');}
+
+function hallLogout(){
+  stopScanner();
+  document.getElementById('app-screen').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+  if(timerInterval) clearInterval(timerInterval);
+}
+
+/* ══ LOAD DATA ══ */
+async function loadAll(){
+  try{
+    var today=new Date().toISOString().slice(0,10);
+    var r=await sb.from('passport_applications').select('*')
+      .in('status',['tabseet_approved','hall_entry','hall_fee_paid','passport_fee_paid','investigation','photography','ready','delivered','urgent'])
+      .order('hall_entry_time',{ascending:true});
+    apps=r.data||[];
+    updateKPIs();
+    renderLive();
+    renderUrgent();
+    renderStats();
+  }catch(e){toast('خطأ في تحميل البيانات','err');}
+}
+
+function initRealtime(){
+  try{
+    sb.channel('hall-live')
+      .on('postgres_changes',{event:'UPDATE',schema:'public',table:'passport_applications'},function(p){
+        var idx=apps.findIndex(function(a){return a.id===p.new.id;});
+        if(idx>=0) apps[idx]=p.new;
+        else if(HALL_STATUSES.indexOf(p.new.status)>=0) apps.push(p.new);
+        updateKPIs();renderLive();renderUrgent();renderStats();
+      })
+      .subscribe();
+  }catch(e){}
+}
+
+/* ══ KPIs ══ */
+function updateKPIs(){
+  var inside=apps.filter(function(a){return ['hall_entry','hall_fee_paid','passport_fee_paid','investigation','photography'].indexOf(a.status)>=0;});
+  var setKPI=function(id,v){var el=document.getElementById(id);if(el) el.textContent=v;};
+  setKPI('kp-total',apps.length);
+  setKPI('kp-inside',inside.length);
+  setKPI('kp-hall',apps.filter(function(a){return a.status==='hall_fee_paid';}).length);
+  setKPI('kp-pass',apps.filter(function(a){return a.status==='passport_fee_paid';}).length);
+  setKPI('kp-inv',apps.filter(function(a){return a.status==='investigation';}).length);
+  setKPI('kp-photo',apps.filter(function(a){return a.status==='photography';}).length);
+  setKPI('kp-ready',apps.filter(function(a){return a.status==='ready'||a.status==='delivered';}).length);
+  setKPI('kp-urgent',apps.filter(function(a){return a.status==='urgent';}).length);
+}
+
+/* ══ ELAPSED TIME ══ */
+function elapsed(from){
+  if(!from) return '—';
+  var ms=Date.now()-new Date(from).getTime();
+  var mins=Math.floor(ms/60000);
+  var hrs=Math.floor(mins/60);
+  if(hrs>0) return hrs+'س '+( mins%60)+'د';
+  return mins+'د';
+}
+function elapsedClass(from){
+  if(!from) return '';
+  var mins=Math.floor((Date.now()-new Date(from).getTime())/60000);
+  if(mins<30) return 'fast';
+  if(mins<60) return 'mid';
+  return 'slow';
+}
+function startElapsedTimer(){
+  timerInterval=setInterval(function(){
+    var rows=document.querySelectorAll('.elapsed-cell');
+    rows.forEach(function(cell){
+      var from=cell.dataset.from;
+      if(from){cell.textContent=elapsed(from);cell.className='elapsed elapsed-cell '+elapsedClass(from);}
+    });
+  },30000);
+}
+
+/* ══ RENDER LIVE ══ */
+function renderLive(){
+  var tbody=document.getElementById('live-tbody');if(!tbody) return;
+  var inside=apps.filter(function(a){return ['hall_entry','hall_fee_paid','passport_fee_paid','investigation','photography'].indexOf(a.status)>=0;});
+  inside.sort(function(a,b){return new Date(a.hall_entry_time||0)-new Date(b.hall_entry_time||0);});
+  if(!inside.length){tbody.innerHTML='<tr><td colspan="9" style="text-align:center;padding:20px;color:rgba(255,255,255,.3);font-size:12px;">لا يوجد مواطنون داخل الصالة الآن</td></tr>';return;}
+  var stMap={hall_entry:{cls:'sb-entry',lbl:'🚪 دخل'},hall_fee_paid:{cls:'sb-hall',lbl:'💳 الصالة'},passport_fee_paid:{cls:'sb-pass',lbl:'💰 الجواز'},investigation:{cls:'sb-inv',lbl:'🔎 تحري'},photography:{cls:'sb-photo',lbl:'📸 تصوير'}};
+  tbody.innerHTML=inside.map(function(a,i){
+    var sm=stMap[a.status]||{cls:'',lbl:a.status};
+    var last4=(a.national_id||'').slice(-4);
+    var fee=a.person_type==='child'?'50 ر.س':'100 ر.س';
+    var typeL=a.request_type==='renew'?'تجديد':'جديد';
+    var entryFmt=a.hall_entry_time?new Date(a.hall_entry_time).toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'}):'—';
+    var elp=elapsed(a.hall_entry_time);
+    var eCls=elapsedClass(a.hall_entry_time);
+    return '<tr>'
+      +'<td style="color:rgba(255,255,255,.4);">'+(i+1)+'</td>'
+      +'<td style="font-weight:700;">'+a.full_name+'</td>'
+      +'<td style="direction:ltr;font-family:monospace;color:rgba(255,255,255,.5);">****'+last4+'</td>'
+      +'<td><span class="stage-badge '+sm.cls+'">'+sm.lbl+'</span></td>'
+      +'<td><span class="time-chip">'+entryFmt+'</span></td>'
+      +'<td><span class="elapsed elapsed-cell '+eCls+'" data-from="'+(a.hall_entry_time||'')+'">'+elp+'</span></td>'
+      +'<td style="font-size:10px;">'+typeL+'</td>'
+      +'<td style="color:var(--gold);font-weight:700;">'+fee+'</td>'
+      +'<td><select onchange="quickUpdateStatus(\''+a.id+'\',this.value)" style="background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.2);border-radius:6px;color:#fff;padding:4px 7px;font-size:10px;font-family:Tajawal,Arial;cursor:pointer;">'
+      +'<option value="">— انقل —</option>'
+      +'<option value="hall_fee_paid">💳 سدّد الصالة</option>'
+      +'<option value="passport_fee_paid">💰 سدّد الجواز</option>'
+      +'<option value="investigation">🔎 التحري</option>'
+      +'<option value="photography">📸 التصوير</option>'
+      +'<option value="ready">✅ جاهز</option>'
+      +'</select></td>'
+      +'</tr>';
+  }).join('');
+}
+
+/* ══ RENDER URGENT ══ */
+function renderUrgent(){
+  var el=document.getElementById('urgent-list');if(!el) return;
+  var urgs=apps.filter(function(a){return a.status==='urgent';});
+  if(!urgs.length){el.innerHTML='<div style="text-align:center;padding:20px;color:rgba(255,255,255,.3);font-size:12px;">لا توجد حالات طارئة اليوم</div>';return;}
+  el.innerHTML=urgs.map(function(a,i){
+    var last4=(a.national_id||'').slice(-4);
+    var fee=a.person_type==='child'?'50 ر.س':'100 ر.س';
+    return '<div style="background:rgba(146,43,33,.15);border:1px solid rgba(192,57,43,.3);border-radius:9px;padding:11px;margin-bottom:8px;display:flex;align-items:center;gap:10px;">'
+      +'<div style="width:28px;height:28px;background:rgba(192,57,43,.7);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0;">'+(i+1)+'</div>'
+      +'<div style="flex:1;min-width:0;">'
+      +'<div style="font-size:13px;font-weight:700;">'+a.full_name+' <span style="color:rgba(255,255,255,.4);font-size:9px;">(****'+last4+')</span></div>'
+      +'<div style="font-size:10px;color:rgba(255,255,255,.4);margin-top:1px;">'+a.ref_num+' · '+fee+(a.stage_notes?' · '+a.stage_notes:'')+'</div>'
+      +'</div>'
+      +'<div style="display:flex;gap:5px;">'
+      +'<button class="ibtn" onclick="quickUpdateStatus(\''+a.id+'\',\'hall_entry\')" style="background:rgba(22,160,133,.3);border-color:rgba(22,160,133,.5);color:#4caf9a;">🚪 دخل</button>'
+      +'<button class="ibtn" onclick="quickUpdateStatus(\''+a.id+'\',\'cancelled\')" style="color:#e87474;border-color:rgba(192,57,43,.4);">إلغاء</button>'
+      +'</div>'
+      +'</div>';
+  }).join('');
+}
+
+/* ══ UPDATE STATUS ══ */
+async function quickUpdateStatus(id,st){
+  if(!st) return;
+  var a=apps.find(function(x){return x.id===id;});if(!a) return;
+  var payload={status:st,updated_at:new Date().toISOString()};
+  if(st==='hall_entry') payload.hall_entry_time=new Date().toISOString();
+  try{
+    var r=await sb.from('passport_applications').update(payload).eq('id',id);
+    if(r.error) throw r.error;
+    Object.assign(a,payload);
+    updateKPIs();renderLive();renderUrgent();renderStats();
+    var stLabels={hall_entry:'دخل الصالة',hall_fee_paid:'سدّد الصالة',passport_fee_paid:'سدّد الجواز',investigation:'التحري',photography:'التصوير',ready:'جاهز'};
+    toast('✅ '+(a.full_name.split(' ')[0])+' → '+(stLabels[st]||st),'ok');
+  }catch(e){toast('خطأ: '+e.message,'err');}
+}
+
+/* ══ ADD URGENT ══ */
+async function addUrgent(){
+  var nid=(document.getElementById('urg-nid').value||'').trim();
+  var ref=(document.getElementById('urg-ref').value||'').trim();
+  var reason=(document.getElementById('urg-reason').value||'').trim();
+  if(!nid&&!ref){toast('أدخل الرقم الوطني أو رقم الطلب','err');return;}
+  try{
+    var query=sb.from('passport_applications').select('*');
+    if(ref) query=query.eq('ref_num',ref);
+    else query=query.eq('national_id',nid);
+    var r=await query.single();
+    if(r.error||!r.data){toast('لم يُعثر على الطلب','err');return;}
+    var a=r.data;
+    var payload={status:'urgent',stage_notes:reason||'حالة طارئة',updated_at:new Date().toISOString()};
+    await sb.from('passport_applications').update(payload).eq('id',a.id);
+    Object.assign(a,payload);
+    var idx=apps.findIndex(function(x){return x.id===a.id;});
+    if(idx>=0) apps[idx]=a; else apps.push(a);
+    document.getElementById('urg-nid').value='';
+    document.getElementById('urg-ref').value='';
+    document.getElementById('urg-reason').value='';
+    updateKPIs();renderLive();renderUrgent();
+    toast('🚨 تم تسجيل الحالة الطارئة: '+a.full_name,'warn');
+    switchTab('urgent');
+  }catch(e){toast('خطأ: '+e.message,'err');}
+}
+
+/* ══ SCANNER ══ */
+function toggleScanner(){
+  if(scannerRunning) stopScanner(); else startScanner();
+}
+function startScanner(){
+  try{
+    scanner=new Html5Qrcode('reader');
+    scanner.start({facingMode:'environment'},{fps:10,qrbox:220},function(decoded){
+      handleQRScan(decoded);
+    },function(){}).then(function(){
+      scannerRunning=true;
+      document.getElementById('scan-toggle-btn').textContent='⏹ إيقاف الكاميرا';
+      document.getElementById('scan-toggle-btn').style.background='rgba(192,57,43,.3)';
+      document.getElementById('scan-toggle-btn').style.borderColor='rgba(192,57,43,.7)';
+      document.getElementById('scan-toggle-btn').style.color='#e87474';
+    }).catch(function(e){toast('تعذر تشغيل الكاميرا — استخدم البحث اليدوي','err');});
+  }catch(e){toast('مكتبة الباركود غير متاحة','err');}
+}
+function stopScanner(){
+  if(scanner&&scannerRunning){
+    scanner.stop().catch(function(){});
+    scannerRunning=false;
+    document.getElementById('scan-toggle-btn').textContent='▶ تشغيل الكاميرا';
+    document.getElementById('scan-toggle-btn').style.background='rgba(201,168,76,.2)';
+    document.getElementById('scan-toggle-btn').style.borderColor='rgba(201,168,76,.7)';
+    document.getElementById('scan-toggle-btn').style.color='var(--gold)';
+  }
+}
+
+async function handleQRScan(decoded){
+  stopScanner();
+  try{
+    var data=JSON.parse(decoded);
+    await findAndShowCitizen(data.ref,data.nid);
+  }catch(e){
+    await findAndShowCitizen(decoded,decoded);
+  }
+}
+
+async function manualSearch(){
+  var val=(document.getElementById('scan-manual-inp').value||'').trim();
+  if(!val){toast('أدخل رقم الطلب أو الرقم الوطني','err');return;}
+  await findAndShowCitizen(val,val);
+}
+
+async function findAndShowCitizen(ref,nid){
+  try{
+    var r=await sb.from('passport_applications').select('*')
+      .or('ref_num.eq.'+ref+',national_id.eq.'+nid).limit(1).single();
+    if(r.error||!r.data){showCitResult(null,'لم يُعثر على طلب مطابق');return;}
+    showCitResult(r.data);
+  }catch(e){showCitResult(null,'خطأ في البحث: '+e.message);}
+}
+
+function showCitResult(a,errMsg){
+  var el=document.getElementById('cit-result');if(!el) return;
+  el.style.display='block';
+  if(!a){el.innerHTML='<div class="cit-card" style="border-color:rgba(192,57,43,.4);"><div style="color:#e87474;font-size:13px;font-weight:700;text-align:center;padding:10px;">❌ '+errMsg+'</div></div>';return;}
+  var st=a.status;
+  var canEntry=['tabseet_approved','urgent'].indexOf(st)>=0;
+  var isInside=['hall_entry','hall_fee_paid','passport_fee_paid','investigation','photography'].indexOf(st)>=0;
+  var isDone=['ready','delivered'].indexOf(st)>=0;
+  var isUrg=st==='urgent';
+  var fee=a.person_type==='child'?'50 ر.س (طفل)':'100 ر.س (بالغ)';
+  var typeL=a.request_type==='renew'?'تجديد':'إصدار جديد';
+  var stLabels={tabseet_approved:'مبسَّط ✅',hall_entry:'داخل الصالة 🚪',hall_fee_paid:'سدّد الصالة 💳',passport_fee_paid:'سدّد الجواز 💰',investigation:'التحري 🔎',photography:'التصوير 📸',ready:'جاهز ✅',delivered:'تم الاستلام',urgent:'حالة طارئة 🚨',pending:'بانتظار',processing:'قيد المعالجة',cancelled:'ملغي ❌'};
+  var html='<div class="cit-card">'
+    +(isUrg?'<div class="urg-badge">🚨 حالة طارئة '+( a.stage_notes?'— '+a.stage_notes:'')+'</div>':'')
+    +'<div class="cit-name">'+a.full_name+'</div>'
+    +'<div class="cit-ref">'+a.ref_num+'</div>'
+    +'<div class="cit-details">'
+    +'<div class="cit-detail"><div class="cd-lbl">الرقم الوطني</div><div class="cd-val" style="direction:ltr;font-family:monospace;">****'+(a.national_id||'').slice(-4)+'</div></div>'
+    +'<div class="cit-detail"><div class="cd-lbl">الحالة</div><div class="cd-val">'+(stLabels[st]||st)+'</div></div>'
+    +'<div class="cit-detail"><div class="cd-lbl">نوع الطلب</div><div class="cd-val">'+typeL+'</div></div>'
+    +'<div class="cit-detail"><div class="cd-lbl">رسوم الصالة</div><div class="cd-val" style="color:var(--gold);">'+fee+'</div></div>'
+    +(a.hall_entry_time?'<div class="cit-detail"><div class="cd-lbl">وقت الدخول</div><div class="cd-val">'+new Date(a.hall_entry_time).toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'})+'</div></div>':'')
+    +(isInside?'<div class="cit-detail"><div class="cd-lbl">المدة داخل الصالة</div><div class="cd-val elapsed-cell '+elapsedClass(a.hall_entry_time)+'" data-from="'+(a.hall_entry_time||'')+'">'+elapsed(a.hall_entry_time)+'</div></div>':'')
+    +'</div>';
+
+  if(isDone){
+    html+='<div style="background:rgba(46,107,79,.2);border:1px solid rgba(46,107,79,.4);border-radius:8px;padding:10px;margin-top:10px;text-align:center;color:#7ec49c;font-weight:700;">✅ انتهت إجراءاته</div>';
+  }else if(st==='cancelled'){
+    html+='<div style="background:rgba(192,57,43,.2);border-radius:8px;padding:10px;margin-top:10px;text-align:center;color:#e87474;font-weight:700;">❌ طلب ملغي</div>';
+  }else if(!['pending','processing'].includes(st)){
+    html+='<div class="stage-btns">';
+    if(canEntry||isUrg) html+='<button class="stage-btn s-entry" data-id="'+a.id+'" onclick="stageAction(this.dataset.id,\'hall_entry\')">🚪 تسجيل الدخول</button>';
+    if(st==='hall_entry') html+='<button class="stage-btn s-hall-fee" data-id="'+a.id+'" onclick="stageAction(this.dataset.id,\'hall_fee_paid\')">💳 سدّد رسوم الصالة</button>';
+    if(st==='hall_fee_paid') html+='<button class="stage-btn s-pass-fee" data-id="'+a.id+'" onclick="stageAction(this.dataset.id,\'passport_fee_paid\')">💰 سدّد رسوم الجواز</button>';
+    if(st==='passport_fee_paid') html+='<button class="stage-btn s-investigation" data-id="'+a.id+'" onclick="stageAction(this.dataset.id,\'investigation\')">🔎 بدأ التحري</button>';
+    if(st==='investigation') html+='<button class="stage-btn s-photography" data-id="'+a.id+'" onclick="stageAction(this.dataset.id,\'photography\')">📸 التصوير</button>';
+    if(st==='photography') html+='<button class="stage-btn s-ready" data-id="'+a.id+'" onclick="stageAction(this.dataset.id,\'ready\')">✅ جاهز للاستلام</button>';
+    html+='</div>';
+  }else{
+    html+='<div style="background:rgba(255,255,255,.08);border-radius:8px;padding:10px;margin-top:10px;text-align:center;color:rgba(255,255,255,.5);font-size:12px;">⚠️ لم يتم التبسيط بعد — لا يمكن الدخول</div>';
+  }
+  html+='</div>';
+  el.innerHTML=html;
+}
+
+async function stageAction(id,st){
+  var payload={status:st,updated_at:new Date().toISOString()};
+  if(st==='hall_entry') payload.hall_entry_time=new Date().toISOString();
+  try{
+    var r=await sb.from('passport_applications').update(payload).eq('id',id);
+    if(r.error) throw r.error;
+    var idx=apps.findIndex(function(a){return a.id===id;});
+    var a;
+    if(idx>=0){Object.assign(apps[idx],payload);a=apps[idx];}
+    else{var rr=await sb.from('passport_applications').select('*').eq('id',id).single();a=rr.data;if(a){Object.assign(a,payload);apps.push(a);}}
+    if(a) showCitResult(a);
+    updateKPIs();renderLive();
+    var lbls={hall_entry:'تم تسجيل الدخول 🚪',hall_fee_paid:'تم سداد رسوم الصالة 💳',passport_fee_paid:'تم سداد رسوم الجواز 💰',investigation:'انتقل للتحري 🔎',photography:'انتقل للتصوير 📸',ready:'الجواز جاهز ✅'};
+    toast(lbls[st]||st,'ok');
+  }catch(e){toast('خطأ: '+e.message,'err');}
+}
+
+/* ══ STATS ══ */
+function renderStats(){
+  renderStageTimes();
+  renderDailySummary();
+  renderTimesChart();
+}
+
+function avgMinutes(list,from,to){
+  var times=list.filter(function(a){return a[from]&&a[to];}).map(function(a){return (new Date(a[to])-new Date(a[from]))/60000;});
+  if(!times.length) return null;
+  return Math.round(times.reduce(function(s,x){return s+x;},0)/times.length);
+}
+function fmtMins(m){if(m===null) return '—';if(m<60) return m+'د';return Math.floor(m/60)+'س '+(m%60)+'د';}
+function avgClass(m){if(m===null) return '';if(m<30) return 'avg-fast';if(m<60) return 'avg-mid';return 'avg-slow';}
+
+function renderStageTimes(){
+  var el=document.getElementById('stage-times');if(!el) return;
+  var done=apps.filter(function(a){return a.hall_entry_time;});
+  var stages=[
+    {lbl:'دخول ← سداد الصالة',from:'hall_entry_time',to:'updated_at',filter:function(a){return a.status==='hall_fee_paid';}},
+    {lbl:'إجمالي داخل الصالة',from:'hall_entry_time',to:'updated_at',filter:function(a){return a.status==='ready'||a.status==='delivered';}},
+  ];
+  var totalInside=done.filter(function(a){return a.status==='ready'||a.status==='delivered';});
+  var avgTotal=avgMinutes(totalInside,'hall_entry_time','updated_at');
+  el.innerHTML='<div class="stat-row"><span class="stat-lbl">متوسط الوقت الكلي</span><span class="avg-chip '+avgClass(avgTotal)+'">'+fmtMins(avgTotal)+'</span></div>'
+    +'<div class="stat-row"><span class="stat-lbl">أسرع إنجاز</span><span class="avg-chip avg-fast">—</span></div>'
+    +'<div class="stat-row"><span class="stat-lbl">أبطأ إنجاز</span><span class="avg-chip avg-slow">—</span></div>';
+}
+
+function renderDailySummary(){
+  var el=document.getElementById('daily-summary');if(!el) return;
+  var total=apps.length;
+  var done=apps.filter(function(a){return a.status==='ready'||a.status==='delivered';}).length;
+  var inside=apps.filter(function(a){return ['hall_entry','hall_fee_paid','passport_fee_paid','investigation','photography'].indexOf(a.status)>=0;}).length;
+  el.innerHTML='<div class="stat-row"><span class="stat-lbl">إجمالي مسجّلون</span><span class="stat-val">'+total+'</span></div>'
+    +'<div class="stat-row"><span class="stat-lbl">داخل الصالة الآن</span><span class="stat-val" style="color:#4caf9a;">'+inside+'</span></div>'
+    +'<div class="stat-row"><span class="stat-lbl">انتهوا ✅</span><span class="stat-val" style="color:var(--gold);">'+done+'</span></div>'
+    +'<div class="stat-row"><span class="stat-lbl">حالات طارئة</span><span class="stat-val" style="color:#e87474;">'+apps.filter(function(a){return a.status==='urgent';}).length+'</span></div>';
+}
+
+function renderTimesChart(){
+  var ctx=document.getElementById('ch-times');if(!ctx) return;
+  var labels=STAGES.map(function(s){return s.lbl;});
+  var counts=STAGES.map(function(s){return apps.filter(function(a){return a.status===s.key;}).length;});
+  if(statsChart) statsChart.destroy();
+  statsChart=new Chart(ctx,{type:'bar',data:{labels:labels,datasets:[{data:counts,backgroundColor:['rgba(22,160,133,.7)','rgba(201,168,76,.7)','rgba(26,95,168,.7)','rgba(93,109,126,.7)','rgba(192,57,43,.7)','rgba(46,107,79,.7)'],borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'rgba(255,255,255,.5)',font:{family:'Tajawal',size:9}}},y:{ticks:{color:'rgba(255,255,255,.5)',stepSize:1},grid:{color:'rgba(255,255,255,.06)'}}}}});
+}
+
+/* ══ TAB SWITCH ══ */
+function switchTab(t){
+  document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});
+  document.querySelectorAll('.tab').forEach(function(b){b.classList.remove('active');});
+  var sc=document.getElementById('sc-'+t);if(sc) sc.classList.add('active');
+  var tb=document.getElementById('tab-'+t);if(tb) tb.classList.add('active');
+  if(t==='stats') renderStats();
+  if(t!=='scan') stopScanner();
+}
+</script>
+</body>
+</html>
