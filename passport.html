@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>بوابة جوازات الجالية السودانية — جازان</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap');
+:root{
+  --gd:#0f2419;--gm:#1a3d2b;--gl:#2e6b4f;--gp:#e8f5ee;--gpp:#c8e6d4;
+  --gold:#c9a84c;--gold-l:#f5e9c8;--gold-d:#8a6010;
+  --blue:#1a5fa8;--blue-p:#e8f0fb;
+  --red:#c0392b;--red-p:#fdf0ee;
+  --orange:#e67e22;--orange-p:#fef5ec;
+  --ink:#1c2a22;--muted:#6b7c74;--border:#d4e0d9;--surf:#f0f7f3;--white:#fff;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{width:100%;min-height:100%;margin:0;padding:0;}
+body{font-family:'Tajawal',Arial,sans-serif;background:var(--surf);color:var(--ink);}
+button,input,select,textarea{font-family:'Tajawal',Arial,sans-serif;}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);padding:10px 22px;border-radius:30px;font-size:13px;font-weight:700;opacity:0;transition:all .3s;z-index:9999;pointer-events:none;box-shadow:0 4px 20px rgba(0,0,0,.3);white-space:nowrap;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.ok{background:var(--gl);color:#fff;}.toast.err{background:var(--red);color:#fff;}.toast.warn{background:var(--gold-d);color:#fff;}
+.page{display:none;width:100%;min-height:100vh;}.page.active{display:block;}
+/* AUTH */
+.auth-bg{min-height:100vh;background:linear-gradient(160deg,var(--gd),var(--gm));display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 16px;}
+.auth-card{width:100%;max-width:380px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);border-radius:16px;padding:22px 18px;}
+.auth-logo{width:68px;height:68px;background:var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:30px;margin:0 auto 14px;box-shadow:0 4px 20px rgba(0,0,0,.3);}
+.auth-title{color:#fff;font-size:19px;font-weight:900;text-align:center;margin-bottom:3px;}
+.auth-sub{color:rgba(255,255,255,.55);font-size:11px;text-align:center;margin-bottom:22px;}
+.auth-err{display:none;background:rgba(192,57,43,.25);border:1px solid rgba(192,57,43,.4);border-radius:8px;padding:9px 12px;font-size:12px;color:#e74c3c;text-align:center;margin-bottom:12px;}
+.auth-err.show{display:block;}
+.al{display:block;font-size:11px;color:rgba(255,255,255,.55);font-weight:700;margin-bottom:5px;}
+.ai{width:100%;background:rgba(0,0,0,.3);border:1.5px solid rgba(255,255,255,.14);border-radius:8px;padding:11px 12px;font-size:15px;color:#fff;outline:none;box-sizing:border-box;transition:border-color .2s;}
+.ai:focus{border-color:var(--gold);}
+.ai.ltr{direction:ltr;text-align:left;}
+.auth-btn{width:100%;padding:12px;background:linear-gradient(135deg,#1D9E75,#0f6e56);color:#fff;border:none;border-radius:9px;font-size:15px;font-weight:800;cursor:pointer;margin-top:4px;}
+.auth-link{color:rgba(255,255,255,.45);font-size:12px;text-align:center;margin-top:12px;cursor:pointer;}
+.auth-link span{color:var(--gold);font-weight:700;}
+/* DASH */
+.dash-hdr{background:linear-gradient(135deg,var(--gd),var(--gm));padding:14px 18px;display:flex;align-items:center;gap:12px;}
+.dash-av{width:40px;height:40px;background:var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:900;color:var(--gd);flex-shrink:0;}
+.dash-name{color:#fff;font-size:14px;font-weight:800;}
+.dash-ph{color:rgba(255,255,255,.55);font-size:10px;margin-top:1px;}
+.dash-out{margin-right:auto;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.7);padding:5px 11px;border-radius:7px;font-size:11px;cursor:pointer;}
+.dash-body{padding:14px;max-width:600px;margin:0 auto;}
+/* STATUS CARD */
+.sc{border-radius:14px;padding:18px;margin-bottom:14px;position:relative;overflow:hidden;color:#fff;}
+.sc.pending{background:linear-gradient(135deg,#e67e22,#d35400);}
+.sc.processing{background:linear-gradient(135deg,#1a5fa8,#1248a0);}
+.sc.tabseet{background:linear-gradient(135deg,#8e44ad,#6c3483);}
+.sc.hall-entry{background:linear-gradient(135deg,#16a085,#0f6e56);}
+.sc.hall-fee{background:linear-gradient(135deg,var(--gold-d),#5c3a00);}
+.sc.passport-fee{background:linear-gradient(135deg,#2980b9,#1a5fa8);}
+.sc.investigation{background:linear-gradient(135deg,#5d6d7e,#2c3e50);}
+.sc.photography{background:linear-gradient(135deg,#e74c3c,#c0392b);}
+.sc.ready{background:linear-gradient(135deg,#1D9E75,#0f6e56);}
+.sc.delivered{background:linear-gradient(135deg,var(--gm),var(--gd));}
+.sc.cancelled{background:linear-gradient(135deg,#636e72,#2d3436);}
+.sc.urgent{background:linear-gradient(135deg,#c0392b,#922b21);}
+.sc-stg{font-size:10px;opacity:.7;margin-bottom:3px;font-weight:600;}
+.sc-status{font-size:18px;font-weight:900;margin-bottom:5px;}
+.sc-desc{font-size:11px;opacity:.8;line-height:1.6;}
+.sc-ref{font-size:10px;opacity:.55;margin-top:6px;}
+.sc-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:50px;opacity:.18;}
+.sc-btn{background:rgba(255,255,255,.22);border:1px solid rgba(255,255,255,.3);color:#fff;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:Tajawal,Arial;margin-top:10px;display:inline-block;}
+/* TIMELINE */
+.tl{background:var(--white);border-radius:12px;padding:14px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,.06);}
+.tl-title{font-size:12px;font-weight:800;color:var(--gm);margin-bottom:12px;display:flex;align-items:center;gap:5px;}
+.tl-title::before{content:'';width:3px;height:12px;background:var(--gm);border-radius:2px;}
+.tl-item{display:flex;gap:10px;align-items:flex-start;margin-bottom:6px;}
+.tl-item:last-child{margin-bottom:0;}
+.tl-dot{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;flex-shrink:0;margin-top:1px;}
+.tl-dot.done{background:var(--gm);color:#fff;}
+.tl-dot.active{background:var(--gold);color:var(--gd);box-shadow:0 0 0 3px var(--gold-l);}
+.tl-dot.wait{background:var(--border);color:var(--muted);}
+.tl-label{font-size:12px;font-weight:600;line-height:1.4;}
+.tl-label.active{color:var(--gm);font-weight:800;}
+.tl-label.wait{color:var(--muted);}
+.tl-connector{width:2px;height:10px;margin:1px 0 1px 10px;border-radius:1px;}
+.tl-connector.done{background:var(--gm);}
+.tl-connector.wait{background:var(--border);}
+/* QR */
+.qr-page{background:linear-gradient(160deg,var(--gd),var(--gm));min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;}
+.qr-card{background:var(--white);border-radius:16px;padding:20px;width:100%;max-width:320px;box-shadow:0 8px 32px rgba(0,0,0,.3);}
+.qr-hdr{display:flex;align-items:center;gap:10px;margin-bottom:14px;padding-bottom:12px;border-bottom:2px dashed var(--gpp);}
+.qr-logo{width:38px;height:38px;background:var(--gm);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:19px;}
+.qr-name{font-size:15px;font-weight:900;color:var(--gm);text-align:center;margin-top:8px;}
+.qr-ref{font-size:11px;color:var(--muted);text-align:center;font-family:monospace;}
+.qr-details{background:var(--gp);border-radius:8px;padding:9px;margin-top:10px;}
+.qr-row{display:flex;justify-content:space-between;font-size:11px;padding:2px 0;}
+.qr-note{font-size:10px;color:var(--orange);text-align:center;margin-top:9px;font-weight:700;}
+.btn-print{width:100%;padding:10px;background:var(--gm);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer;margin-top:10px;}
+.btn-back{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:#fff;padding:9px 20px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:Tajawal,Arial;margin-top:12px;}
+/* INFO BOX */
+.info-box{background:var(--white);border-radius:12px;padding:13px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.05);}
+.ib-title{font-size:12px;font-weight:800;color:var(--gm);margin-bottom:9px;display:flex;align-items:center;gap:4px;}
+.ib-title::before{content:'';width:3px;height:11px;background:var(--gm);border-radius:2px;}
+.ib-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;}
+.ib-row:last-child{border-bottom:none;}
+.ib-lbl{color:var(--muted);font-size:11px;}
+.ib-val{font-weight:700;text-align:left;}
+/* FORM */
+.prog-hdr{background:var(--white);border-bottom:1px solid var(--border);padding:10px 14px;position:sticky;top:0;z-index:50;}
+.prog-top{display:flex;justify-content:space-between;margin-bottom:6px;}
+.prog-t{font-size:12px;font-weight:800;color:var(--gm);}
+.prog-s{font-size:10px;color:var(--muted);}
+.prog-bar{height:4px;background:var(--border);border-radius:2px;overflow:hidden;}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--gm),var(--gl));border-radius:2px;transition:width .4s;}
+.dots{display:flex;margin-top:8px;}
+.di{flex:1;display:flex;flex-direction:column;align-items:center;position:relative;}
+.di:not(:last-child)::after{content:'';position:absolute;top:11px;left:50%;width:100%;height:2px;background:var(--border);z-index:0;}
+.di.dn::after{background:var(--gm);}
+.dot{width:22px;height:22px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;background:var(--white);color:var(--muted);position:relative;z-index:1;}
+.di.ac .dot{border-color:var(--gm);background:var(--gm);color:#fff;}
+.di.dn .dot{border-color:var(--gm);background:var(--gm);color:#fff;}
+.dl{font-size:9px;color:var(--muted);margin-top:3px;font-weight:600;}
+.di.ac .dl,.di.dn .dl{color:var(--gm);}
+.pc{max-width:600px;margin:0 auto;padding:14px 14px 88px;}
+.stitle{font-size:16px;font-weight:900;color:var(--gm);margin-bottom:4px;}
+.ssub{font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6;}
+.frow{margin-bottom:11px;}
+.fl{font-size:11px;color:var(--muted);font-weight:700;display:block;margin-bottom:4px;}
+.req{color:var(--red);}
+.fi,.fs{width:100%;border:1.5px solid var(--border);border-radius:9px;padding:11px 12px;font-size:15px;color:var(--ink);background:var(--white);outline:none;appearance:none;box-sizing:border-box;transition:border-color .2s;}
+.fi:focus,.fs:focus{border-color:var(--gm);}
+.fi.ltr{direction:ltr;text-align:left;}
+.f2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:11px;}
+.uc{border:2px dashed var(--gpp);border-radius:12px;padding:16px 12px;text-align:center;background:var(--gp);cursor:pointer;position:relative;}
+.uc input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.uc .ui{font-size:28px;margin-bottom:5px;}
+.uc .ut{font-size:13px;font-weight:800;color:var(--gm);}
+.uc .us{font-size:10px;color:var(--muted);margin-top:2px;}
+.pv{background:var(--white);border:1.5px solid var(--gpp);border-radius:8px;padding:8px 11px;display:none;align-items:center;gap:9px;margin-top:7px;}
+.pv.show{display:flex;}
+.pv img{width:40px;height:40px;border-radius:6px;object-fit:cover;border:1px solid var(--border);}
+.pv-rm{background:var(--red-p);color:var(--red);border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;flex-shrink:0;}
+.bnav{position:fixed;bottom:0;left:0;right:0;background:var(--white);border-top:1px solid var(--border);padding:9px 14px;display:flex;gap:8px;z-index:100;box-shadow:0 -4px 14px rgba(0,0,0,.07);}
+.nb{flex:1;padding:12px 8px;border:none;border-radius:8px;font-size:14px;font-weight:800;cursor:pointer;}
+.nb.nx{background:linear-gradient(135deg,var(--gm),var(--gd));color:#fff;}
+.nb.pv-btn{background:var(--surf);border:1.5px solid var(--border);color:var(--muted);}
+.nb.sub{background:linear-gradient(135deg,var(--gold-d),#5c3a00);color:#fff;}
+.nb:disabled{opacity:.4;cursor:not-allowed;}
+.spin{display:inline-block;width:13px;height:13px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertical-align:middle;}
+@keyframes sp{to{transform:rotate(360deg);}}
+.suc-wrap{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;background:linear-gradient(160deg,var(--gd),var(--gm));text-align:center;}
+.suc-ico{font-size:56px;margin-bottom:12px;animation:pop .5s cubic-bezier(.17,.67,.4,1.3);}
+@keyframes pop{0%{transform:scale(0);}100%{transform:scale(1);}}
+.suc-wrap h1{color:#fff;font-size:19px;font-weight:900;margin-bottom:5px;}
+.suc-wrap p{color:rgba(255,255,255,.75);font-size:12px;line-height:1.7;max-width:300px;}
+.ref-box{background:var(--gold);color:var(--gd);padding:10px 20px;border-radius:25px;font-size:17px;font-weight:900;display:inline-block;margin:13px 0;box-shadow:0 4px 14px rgba(0,0,0,.2);}
+.suc-btn{display:block;width:100%;max-width:280px;padding:12px;border:none;border-radius:9px;font-size:14px;font-weight:800;cursor:pointer;margin:0 auto 8px;}
+.tc-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;}
+.tc{border:2px solid var(--border);border-radius:12px;padding:13px 10px;background:var(--white);cursor:pointer;text-align:center;transition:all .2s;}
+.tc.active{border-color:var(--gm);background:var(--gm);}
+.tc .ti{font-size:26px;margin-bottom:6px;}
+.tc .tt{font-size:13px;font-weight:800;color:var(--ink);}
+.tc .ts{font-size:10px;color:var(--muted);margin-top:2px;}
+.tc.active .tt,.tc.active .ts{color:#fff;}
+.info-card{background:var(--blue-p);border:1px solid #c5d5e8;border-radius:11px;padding:12px;margin-bottom:12px;font-size:12px;color:var(--blue);line-height:1.8;}
+.tips-card{background:var(--gold-l);border:1.5px solid var(--gold);border-radius:11px;padding:12px;margin-bottom:12px;}
+.tips-title{font-size:12px;font-weight:800;color:var(--gold-d);margin-bottom:6px;}
+.tips-list li{font-size:11px;color:var(--gold-d);padding:2px 0;list-style:none;display:flex;gap:4px;}
+.tips-list li::before{content:'✓';font-weight:900;}
+.urgent-badge{background:linear-gradient(135deg,#c0392b,#922b21);color:#fff;padding:6px 14px;border-radius:20px;font-size:11px;font-weight:800;display:inline-flex;align-items:center;gap:5px;margin-bottom:10px;}
+</style>
+</head>
+<body>
+<div class="toast" id="toast"></div>
+
+<!-- WELCOME -->
+<div class="page active" id="pg-welcome">
+<div class="auth-bg">
+  <div class="auth-logo">🛂</div>
+  <div class="auth-title">بوابة الجوازات السودانية</div>
+  <div class="auth-sub">الجالية السودانية بجازان</div>
+  <div style="width:100%;max-width:360px;display:flex;flex-direction:column;gap:9px;margin-top:18px;">
+    <button class="auth-btn" onclick="showPage('login')">🔑 تسجيل الدخول</button>
+    <button class="auth-btn" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);" onclick="showPage('register')">✨ إنشاء حساب جديد</button>
+    <button class="auth-btn" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);font-size:13px;" onclick="startForm()">📋 تقديم بدون حساب</button>
+  </div>
+  <div style="color:rgba(255,255,255,.3);font-size:10px;margin-top:20px;text-align:center;max-width:280px;line-height:1.7;">الحساب يتيح متابعة حالة طلبك وعرض تصريح دخول الصالة</div>
+</div>
+</div>
+
+<!-- LOGIN -->
+<div class="page" id="pg-login">
+<div class="auth-bg">
+  <div class="auth-logo">🔑</div>
+  <div class="auth-title">تسجيل الدخول</div>
+  <div class="auth-sub">الرقم الوطني + كلمة المرور</div>
+  <div class="auth-card">
+    <div class="auth-err" id="login-err"></div>
+    <div class="frow"><label class="al">الرقم الوطني</label><input class="ai ltr" id="ln-nid" type="text" inputmode="numeric" placeholder="11 رقم" maxlength="11" oninput="this.value=this.value.replace(/[^0-9]/g,'')"/></div>
+    <div class="frow" style="margin-bottom:14px;"><label class="al">كلمة المرور</label>
+      <div style="position:relative;"><input class="ai ltr" id="ln-pw" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"/>
+        <button onclick="var i=document.getElementById('ln-pw');i.type=i.type==='password'?'text':'password';" type="button" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:15px;opacity:.5;color:#fff;">👁</button>
+      </div>
+    </div>
+    <button class="auth-btn" id="login-btn" onclick="doLogin()"><span id="login-btn-txt">دخول</span></button>
+    <div class="auth-link" onclick="showPage('register')">ليس لديك حساب؟ <span>إنشاء حساب</span></div>
+    <div class="auth-link" onclick="startForm()" style="margin-top:6px;font-size:11px;">أو <span>تقديم بدون حساب</span></div>
+  </div>
+  <div style="color:rgba(255,255,255,.3);font-size:10px;margin-top:14px;cursor:pointer;" onclick="showPage('welcome')">← رجوع</div>
+</div>
+</div>
+
+<!-- REGISTER -->
+<div class="page" id="pg-register">
+<div class="auth-bg" style="padding:18px 14px;">
+  <div class="auth-logo">✨</div>
+  <div class="auth-title">إنشاء حساب</div>
+  <div class="auth-sub">سجّل لمتابعة طلبك وعرض تصريح الصالة</div>
+  <div class="auth-card" style="max-width:400px;">
+    <div class="auth-err" id="reg-err"></div>
+    <div class="f2" style="margin-bottom:10px;">
+      <div><label class="al">الرقم الوطني <span style="color:#e74c3c;">*</span></label><input class="ai ltr" id="rg-nid" type="text" inputmode="numeric" placeholder="11 رقم" maxlength="11" oninput="this.value=this.value.replace(/[^0-9]/g,'')"/></div>
+      <div><label class="al">رقم الجوال <span style="color:#e74c3c;">*</span></label><input class="ai ltr" id="rg-phone" type="tel" placeholder="05xxxxxxxx" maxlength="10" oninput="this.value=this.value.replace(/[^0-9]/g,'')"/></div>
+    </div>
+    <div class="frow"><label class="al">الاسم الكامل <span style="color:#e74c3c;">*</span></label><input class="ai" id="rg-name" type="text" placeholder="محمد أحمد عبدالله محمد"/></div>
+    <div class="frow"><label class="al">كلمة المرور <span style="color:#e74c3c;">*</span></label><input class="ai ltr" id="rg-pw" type="password" placeholder="6 أحرف على الأقل"/></div>
+    <div class="frow" style="margin-bottom:14px;"><label class="al">تأكيد كلمة المرور</label><input class="ai ltr" id="rg-pw2" type="password" placeholder="أعد الكتابة" onkeydown="if(event.key==='Enter')doRegister()"/></div>
+    <button class="auth-btn" id="reg-btn" onclick="doRegister()"><span id="reg-btn-txt">إنشاء الحساب</span></button>
+    <div class="auth-link" onclick="showPage('login')">لديك حساب؟ <span>تسجيل الدخول</span></div>
+  </div>
+  <div style="color:rgba(255,255,255,.3);font-size:10px;margin-top:12px;cursor:pointer;" onclick="showPage('welcome')">← رجوع</div>
+</div>
+</div>
+
+<!-- DASHBOARD -->
+<div class="page" id="pg-dashboard">
+  <div class="dash-hdr">
+    <div class="dash-av" id="dash-av">م</div>
+    <div><div class="dash-name" id="dash-name">—</div><div class="dash-ph" id="dash-ph">—</div></div>
+    <button class="dash-out" onclick="doLogout()">خروج ↗</button>
+  </div>
+  <div class="dash-body">
+    <div id="dash-content"><div style="text-align:center;padding:40px 20px;color:var(--muted);"><div style="font-size:32px;margin-bottom:8px;">⏳</div><div style="font-size:13px;font-weight:700;">جاري التحميل...</div></div></div>
+  </div>
+</div>
+
+<!-- QR PASS -->
+<div class="page" id="pg-qr">
+<div class="qr-page">
+  <div class="qr-card">
+    <div class="qr-hdr">
+      <div class="qr-logo">🛂</div>
+      <div><div style="font-size:11px;font-weight:800;color:var(--gm);">الجالية السودانية بجازان</div><div style="font-size:10px;color:var(--muted);">تصريح دخول الصالة</div></div>
+    </div>
+    <div style="text-align:center;"><canvas id="qr-cv"></canvas></div>
+    <div class="qr-name" id="qr-name">—</div>
+    <div class="qr-ref" id="qr-ref">—</div>
+    <div class="qr-details">
+      <div class="qr-row"><span style="color:var(--muted);">الرقم الوطني</span><span style="font-weight:700;direction:ltr;" id="qr-nid">—</span></div>
+      <div class="qr-row"><span style="color:var(--muted);">نوع الطلب</span><span style="font-weight:700;" id="qr-type">—</span></div>
+      <div class="qr-row"><span style="color:var(--muted);">رسوم الصالة</span><span style="font-weight:700;color:var(--gm);" id="qr-fee">—</span></div>
+    </div>
+    <div class="qr-note">⚠️ أبرز هذا التصريح عند دخول الصالة</div>
+    <button class="btn-print" onclick="printQR()">🖨️ طباعة التصريح A6</button>
+  </div>
+  <button class="btn-back" onclick="showPage('dashboard')">← العودة للداشبورد</button>
+</div>
+</div>
+
+<!-- STEP 1 -->
+<div class="page" id="pg-step1">
+  <div class="prog-hdr">
+    <div class="prog-top"><div class="prog-t">الخطوة ١ من ٤</div><div class="prog-s">نوع الطلب</div></div>
+    <div class="prog-bar"><div class="prog-fill" style="width:25%"></div></div>
+    <div class="dots"><div class="di ac"><div class="dot">1</div><div class="dl">النوع</div></div><div class="di"><div class="dot">2</div><div class="dl">البيانات</div></div><div class="di"><div class="dot">3</div><div class="dl">الملفات</div></div><div class="di"><div class="dot">4</div><div class="dl">مراجعة</div></div></div>
+  </div>
+  <div class="pc">
+    <div class="stitle">ما الذي تحتاجه؟</div>
+    <div class="ssub">اختر نوع طلبك</div>
+    <div class="tc-grid">
+      <div class="tc" id="tc-renew" onclick="selType('renew')"><div class="ti">🔄</div><div class="tt">تجديد جواز</div><div class="ts">جوازك منتهٍ أو سينتهي</div></div>
+      <div class="tc" id="tc-new" onclick="selType('new')"><div class="ti">✨</div><div class="tt">إصدار جديد</div><div class="ts">لا يوجد جواز أو مفقود</div></div>
+    </div>
+    <div class="info-card">ℹ️ سيتم التواصل معك لتحديد موعد تسليم الأوراق الأصلية في مقر الجالية.</div>
+  </div>
+  <div class="bnav"><button class="nb pv-btn" onclick="showPage('welcome')">→ رجوع</button><button class="nb nx" onclick="step1Next()">التالي ←</button></div>
+</div>
+
+<!-- STEP 2 -->
+<div class="page" id="pg-step2">
+  <div class="prog-hdr">
+    <div class="prog-top"><div class="prog-t">الخطوة ٢ من ٤</div><div class="prog-s">البيانات</div></div>
+    <div class="prog-bar"><div class="prog-fill" style="width:50%"></div></div>
+    <div class="dots"><div class="di dn"><div class="dot">✓</div><div class="dl">النوع</div></div><div class="di ac"><div class="dot">2</div><div class="dl">البيانات</div></div><div class="di"><div class="dot">3</div><div class="dl">الملفات</div></div><div class="di"><div class="dot">4</div><div class="dl">مراجعة</div></div></div>
+  </div>
+  <div class="pc">
+    <div class="stitle">البيانات الشخصية</div>
+    <div class="ssub">أدخل بياناتك بدقة كما في وثائقك الرسمية</div>
+    <div class="frow"><label class="fl">الاسم الكامل (رباعي) <span class="req">*</span></label><input class="fi" id="r-name" type="text" placeholder="محمد أحمد عبدالله محمد"/></div>
+    <div class="f2">
+      <div><label class="fl">الرقم الوطني <span class="req">*</span></label><input class="fi ltr" id="r-nid" type="text" inputmode="numeric" placeholder="11 رقم" maxlength="11" oninput="this.value=this.value.replace(/[^0-9]/g,'')"/></div>
+      <div><label class="fl">رقم الجوال <span class="req">*</span></label><input class="fi ltr" id="r-phone" type="tel" placeholder="05xxxxxxxx" maxlength="10" oninput="this.value=this.value.replace(/[^0-9]/g,'')"/></div>
+    </div>
+    <div class="f2">
+      <div><label class="fl">تاريخ الميلاد <span class="req">*</span></label><input class="fi" id="r-dob" type="date" onchange="detectAge(this.value)"/><div id="age-badge" style="display:none;margin-top:4px;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;background:var(--blue-p);color:var(--blue);"></div></div>
+      <div><label class="fl">الجنس <span class="req">*</span></label><select class="fs" id="r-gender"><option value="">— اختر —</option><option value="male">ذكر</option><option value="female">أنثى</option></select></div>
+    </div>
+    <div class="frow"><label class="fl">منطقة السكن <span class="req">*</span></label><select class="fs" id="r-area"><option value="">— اختر —</option><option>جازان المدينة</option><option>أبو عريش</option><option>صبيا</option><option>العارضة</option><option>صامطة</option><option>أحد المسارحة</option><option>بيش</option><option>الدرب</option><option>العيدابي</option><option>دار بني مالك</option><option>فيفا</option><option>الريث</option><option>الحرث</option><option>ضمد</option><option>أخرى</option></select></div>
+    <div class="frow"><label class="fl">المهنة <span class="req">*</span></label><select class="fs" id="r-job"><option value="">— اختر —</option><optgroup label="🏥 الصحة"><option value="doctor">طبيب / طبيبة</option><option value="nurse">ممرض / ممرضة</option><option value="pharmacist">صيدلاني</option><option value="health_other">صحة — أخرى</option></optgroup><optgroup label="🏗️ الهندسة"><option value="engineer">مهندس / مهندسة</option><option value="tech">تقني</option></optgroup><optgroup label="🏛️ الحكومة"><option value="gov_employee">موظف حكومي</option><option value="military">عسكري / أمن</option><option value="teacher_gov">معلم حكومي</option></optgroup><optgroup label="🏢 القطاع الخاص"><option value="private_employee">موظف خاص</option><option value="business">تاجر / أعمال</option><option value="teacher_private">معلم خاص</option></optgroup><optgroup label="أخرى"><option value="student">طالب / طالبة</option><option value="housewife">ربة منزل</option><option value="retired">متقاعد</option><option value="other">أخرى</option></optgroup></select></div>
+    <div class="frow" id="pass-field" style="display:none;"><label class="fl">رقم الجواز الحالي</label><input class="fi ltr" id="r-passport" type="text" placeholder="A12345678"/></div>
+    <div class="frow"><label class="fl">ملاحظات</label><textarea class="fi" id="r-notes" rows="2" style="resize:none;font-size:13px;" placeholder="أي معلومات إضافية..."></textarea></div>
+  </div>
+  <div class="bnav"><button class="nb pv-btn" onclick="showPage('step1')">→ رجوع</button><button class="nb nx" onclick="step2Next()">التالي ←</button></div>
+</div>
+
+<!-- STEP 3 -->
+<div class="page" id="pg-step3">
+  <div class="prog-hdr">
+    <div class="prog-top"><div class="prog-t">الخطوة ٣ من ٤</div><div class="prog-s">الملفات</div></div>
+    <div class="prog-bar"><div class="prog-fill" style="width:75%"></div></div>
+    <div class="dots"><div class="di dn"><div class="dot">✓</div><div class="dl">النوع</div></div><div class="di dn"><div class="dot">✓</div><div class="dl">البيانات</div></div><div class="di ac"><div class="dot">3</div><div class="dl">الملفات</div></div><div class="di"><div class="dot">4</div><div class="dl">مراجعة</div></div></div>
+  </div>
+  <div class="pc">
+    <div class="stitle">رفع الوثائق</div>
+    <div class="ssub">أرفق صوراً واضحة بجودة عالية</div>
+    <div class="frow">
+      <label class="fl" style="font-size:13px;color:var(--gm);font-weight:800;margin-bottom:7px;display:block;">📄 صورة الجواز أو الهوية <span class="req">*</span></label>
+      <div class="uc"><input type="file" id="f-passport" accept="image/*,application/pdf" onchange="handleFile('passport',this.files[0])"/><div class="ui">📄</div><div class="ut">انقر لرفع</div><div class="us">JPEG / PNG · حد أقصى ٥ ميغابايت</div></div>
+      <div class="pv" id="prev-passport"><img id="thumb-passport" src="" alt=""/><div style="flex:1;"><div style="font-size:11px;font-weight:700;" id="fname-passport"></div><div style="font-size:10px;color:var(--muted);" id="fsize-passport"></div></div><button class="pv-rm" onclick="removeFile('passport')">✕</button></div>
+    </div>
+    <div class="frow">
+      <label class="fl" style="font-size:13px;color:var(--gm);font-weight:800;margin-bottom:7px;display:block;">🤳 الصورة الشخصية <span class="req">*</span></label>
+      <div class="uc"><input type="file" id="f-photo" accept="image/*" capture="user" onchange="handleFile('photo',this.files[0])"/><div class="ui">🤳</div><div class="ut">التقط أو ارفع من المعرض</div><div class="us">خلفية بيضاء · وجه واضح</div></div>
+      <div class="pv" id="prev-photo"><img id="thumb-photo" src="" alt=""/><div style="flex:1;"><div style="font-size:11px;font-weight:700;" id="fname-photo"></div><div style="font-size:10px;color:var(--muted);" id="fsize-photo"></div></div><button class="pv-rm" onclick="removeFile('photo')">✕</button></div>
+    </div>
+    <div id="guardian-sec" style="display:none;" class="frow">
+      <div style="background:var(--orange-p);border:1px solid var(--orange);border-radius:8px;padding:9px 12px;margin-bottom:9px;font-size:12px;color:var(--orange);font-weight:700;">👨‍👩‍👦 المتقدم طفل — أرفق هوية الوصي</div>
+      <label class="fl" style="font-size:13px;color:var(--gm);font-weight:800;margin-bottom:7px;display:block;">🪪 هوية الوصي <span class="req">*</span></label>
+      <div class="uc"><input type="file" id="f-guardian" accept="image/*,application/pdf" onchange="handleFile('guardian',this.files[0])"/><div class="ui">🪪</div><div class="ut">هوية الوالد / الوالدة</div><div class="us">إقامة أو هوية سارية</div></div>
+      <div class="pv" id="prev-guardian"><img id="thumb-guardian" src="" alt=""/><div style="flex:1;"><div style="font-size:11px;font-weight:700;" id="fname-guardian"></div><div style="font-size:10px;color:var(--muted);" id="fsize-guardian"></div></div><button class="pv-rm" onclick="removeFile('guardian')">✕</button></div>
+    </div>
+    <div class="tips-card"><div class="tips-title">📸 نصائح للصورة الشخصية</div><ul class="tips-list"><li>خلفية بيضاء أو فاتحة</li><li>وجه واضح مضاء جيداً</li><li>بدون نظارات أو غطاء رأس</li><li>النظر مباشرة للكاميرا</li></ul></div>
+  </div>
+  <div class="bnav"><button class="nb pv-btn" onclick="showPage('step2')">→ رجوع</button><button class="nb nx" onclick="step3Next()">مراجعة ←</button></div>
+</div>
+
+<!-- STEP 4 -->
+<div class="page" id="pg-step4">
+  <div class="prog-hdr">
+    <div class="prog-top"><div class="prog-t">الخطوة ٤ من ٤</div><div class="prog-s">المراجعة</div></div>
+    <div class="prog-bar"><div class="prog-fill" style="width:100%"></div></div>
+    <div class="dots"><div class="di dn"><div class="dot">✓</div><div class="dl">النوع</div></div><div class="di dn"><div class="dot">✓</div><div class="dl">البيانات</div></div><div class="di dn"><div class="dot">✓</div><div class="dl">الملفات</div></div><div class="di ac"><div class="dot">4</div><div class="dl">مراجعة</div></div></div>
+  </div>
+  <div class="pc">
+    <div class="stitle">راجع بياناتك</div>
+    <div class="ssub">تأكد من صحة المعلومات قبل الإرسال</div>
+    <div id="review-area"></div>
+    <div class="info-card">✅ بتقديم الطلب تؤكد صحة جميع البيانات<br/>📞 سيتم التواصل على رقم <strong id="confirm-ph">—</strong></div>
+  </div>
+  <div class="bnav"><button class="nb pv-btn" onclick="showPage('step3')">→ رجوع</button><button class="nb sub" id="submit-btn" onclick="submitForm()">📤 تقديم الطلب</button></div>
+</div>
+
+<!-- SUCCESS -->
+<div class="page" id="pg-success">
+<div class="suc-wrap">
+  <div class="suc-ico">✅</div>
+  <h1>تم استلام طلبك!</h1>
+  <p>طلبك قيد المراجعة من فريق الجالية<br/>سيتم التواصل معك قريباً</p>
+  <div class="ref-box" id="ref-num">JZ-000000</div>
+  <p style="color:rgba(255,255,255,.45);font-size:11px;margin-bottom:18px;">احتفظ برقم الطلب للمتابعة</p>
+  <button class="suc-btn" style="background:var(--gold);color:var(--gd);" onclick="goToDash()">📊 متابعة طلبي</button>
+  <button class="suc-btn" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);" onclick="startForm()">📋 طلب جديد</button>
+</div>
+</div>
+
+<script>
+var SB='https://fivgglsoygkonqnsbzvl.supabase.co';
+var SK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpdmdnbHNveWdrb25xbnNienZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3NzQ1NjQsImV4cCI6MjA5NDM1MDU2NH0.hu5ExAyeMfy8JivJdiuY0CstI1FZc6lZK_D76DebAZE';
+var sb=null,citizen=null,app=null;
+var form={type:'',name:'',nid:'',phone:'',dob:'',gender:'',area:'',job:'',passport:'',notes:'',person_type:'adult',age:null};
+var files={passport:null,photo:null,guardian:null};
+var JL={doctor:'طبيب',nurse:'ممرض',pharmacist:'صيدلاني',health_other:'صحة',engineer:'مهندس',tech:'تقني',gov_employee:'موظف حكومي',military:'عسكري',teacher_gov:'معلم حكومي',private_employee:'موظف خاص',business:'تاجر',teacher_private:'معلم خاص',student:'طالب',housewife:'ربة منزل',retired:'متقاعد',other:'أخرى'};
+var JD={doctor:'الأحد',nurse:'الأحد',pharmacist:'الأحد',health_other:'الأحد',engineer:'الاثنين',tech:'الاثنين',gov_employee:'الثلاثاء',military:'الثلاثاء',teacher_gov:'الثلاثاء',private_employee:'الأربعاء',business:'الأربعاء',teacher_private:'الأربعاء',student:'الخميس',housewife:'الخميس',retired:'الخميس',other:'الخميس'};
+
+var ST={
+  pending:{lbl:'⏳ بانتظار المراجعة',cls:'pending',ico:'📋',desc:'طلبك وصل — ننتظر مراجعته من فريق الجالية',step:0},
+  processing:{lbl:'⚙️ قيد المعالجة',cls:'processing',ico:'⚙️',desc:'جاري معالجة طلبك وإرساله للجهات المختصة',step:1},
+  tabseet_approved:{lbl:'✅ تم التبسيط — جاهز لرسوم الصالة',cls:'tabseet',ico:'🔍',desc:'تم قبول طلبك للكشف. احضر للصالة لسداد رسوم الدخول وأبرز تصريح الباركود',step:2,showQR:true},
+  hall_entry:{lbl:'🚪 دخل الصالة',cls:'hall-entry',ico:'🏛️',desc:'تم تسجيل دخولك للصالة — انتقل لنافذة سداد رسوم الصالة',step:3,showQR:true},
+  hall_fee_paid:{lbl:'💳 سدّدت رسوم الصالة',cls:'hall-entry',ico:'💳',desc:'تم سداد رسوم الصالة — انتقل لنافذة رسوم الجواز',step:4},
+  passport_fee_paid:{lbl:'💰 سدّدت رسوم الجواز',cls:'passport-fee',ico:'💰',desc:'جاري إجراءات التحري — انتظر دورك',step:5},
+  investigation:{lbl:'🔎 مرحلة التحري',cls:'investigation',ico:'🔎',desc:'جاري التحقق من بياناتك — انتظر في المنطقة المخصصة',step:6},
+  photography:{lbl:'📸 مرحلة التصوير',cls:'photography',ico:'📸',desc:'توجه لمنطقة التصوير وانتظر دورك',step:7},
+  ready:{lbl:'🎉 الجواز جاهز',cls:'ready',ico:'🎉',desc:'جوازك جاهز — توجه لنافذة الاستلام',step:8},
+  delivered:{lbl:'✅ تم الاستلام',cls:'delivered',ico:'✅',desc:'تم تسليم جوازك بنجاح. مبارك!',step:9},
+  cancelled:{lbl:'❌ ملغي',cls:'cancelled',ico:'❌',desc:'تم إلغاء الطلب',step:-1},
+  urgent:{lbl:'🚨 حالة طارئة',cls:'urgent',ico:'🚨',desc:'تم تحديد موعد لك في نفس يوم التقديم — راجع الملاحظات',step:2,showQR:true},
+};
+
+var TL_STEPS=[
+  {key:'pending',lbl:'استلام الطلب',ico:'📋'},
+  {key:'processing',lbl:'المعالجة والتبسيط',ico:'⚙️'},
+  {key:'tabseet_approved',lbl:'جاهز لرسوم الصالة',ico:'✅'},
+  {key:'hall_entry',lbl:'دخول الصالة',ico:'🚪'},
+  {key:'hall_fee_paid',lbl:'سداد رسوم الصالة',ico:'💳'},
+  {key:'passport_fee_paid',lbl:'سداد رسوم الجواز',ico:'💰'},
+  {key:'investigation',lbl:'التحري',ico:'🔎'},
+  {key:'photography',lbl:'التصوير',ico:'📸'},
+  {key:'ready',lbl:'استلام الجواز',ico:'🎉'},
+];
+var ST_ORDER=['pending','processing','tabseet_approved','urgent','hall_entry','hall_fee_paid','passport_fee_paid','investigation','photography','ready','delivered'];
+
+window.onload=function(){
+  try{sb=window.supabase.createClient(SB,SK,{auth:{persistSession:false}});}catch(e){}
+  try{var s=sessionStorage.getItem('cit');if(s){citizen=JSON.parse(s);showDash();}}catch(e){}
+};
+
+function showPage(n){
+  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
+  var el=document.getElementById('pg-'+n);
+  if(el){el.classList.add('active');}
+  window.scrollTo(0,0);
+}
+function toast(m,t){var el=document.getElementById('toast');el.textContent=m;el.className='toast '+(t||'ok')+' show';setTimeout(function(){el.classList.remove('show');},3500);}
+
+async function hashPw(pw){var b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(pw));return Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,'0');}).join('');}
+
+/* ══ REGISTER ══ */
+async function doRegister(){
+  var nid=(document.getElementById('rg-nid').value||'').trim();
+  var ph=(document.getElementById('rg-phone').value||'').trim();
+  var nm=(document.getElementById('rg-name').value||'').trim();
+  var pw=document.getElementById('rg-pw').value;
+  var pw2=document.getElementById('rg-pw2').value;
+  var err=document.getElementById('reg-err');err.classList.remove('show');
+  if(nid.length!==11){err.textContent='الرقم الوطني 11 رقم';err.classList.add('show');return;}
+  if(!ph.startsWith('05')||ph.length!==10){err.textContent='رقم جوال غير صحيح';err.classList.add('show');return;}
+  if(!nm||nm.split(' ').filter(Boolean).length<2){err.textContent='أدخل الاسم الكامل (اسمين فأكثر)';err.classList.add('show');return;}
+  if(pw.length<6){err.textContent='كلمة المرور 6 أحرف على الأقل';err.classList.add('show');return;}
+  if(pw!==pw2){err.textContent='كلمتا المرور غير متطابقتين';err.classList.add('show');return;}
+  var btn=document.getElementById('reg-btn');document.getElementById('reg-btn-txt').textContent='⏳...';btn.disabled=true;
+  try{
+    var hash=await hashPw(pw);
+    var uid='CIT'+Date.now().toString(36).toUpperCase().slice(-6);
+    var r=await sb.from('citizens').insert({uid:uid,full_name:nm,phone:ph,national_id:nid,password_hash:hash,active:true,created_at:new Date().toISOString()});
+    if(r.error){err.textContent=(r.error.code==='23505'?'هذا الرقم الوطني مسجل مسبقاً':'خطأ: '+r.error.message);err.classList.add('show');}
+    else{citizen={uid:uid,full_name:nm,phone:ph,national_id:nid};sessionStorage.setItem('cit',JSON.stringify(citizen));toast('✅ تم إنشاء الحساب','ok');showDash();}
+  }catch(e){err.textContent='خطأ في الاتصال';err.classList.add('show');}
+  btn.disabled=false;document.getElementById('reg-btn-txt').textContent='إنشاء الحساب';
+}
+
+/* ══ LOGIN ══ */
+async function doLogin(){
+  var nid=(document.getElementById('ln-nid').value||'').trim();
+  var pw=document.getElementById('ln-pw').value;
+  var err=document.getElementById('login-err');err.classList.remove('show');
+  if(nid.length!==11||!pw){err.textContent='أدخل الرقم الوطني وكلمة المرور';err.classList.add('show');return;}
+  var btn=document.getElementById('login-btn');document.getElementById('login-btn-txt').textContent='⏳...';btn.disabled=true;
+  try{
+    var hash=await hashPw(pw);
+    var r=await sb.from('citizens').select('*').eq('national_id',nid).eq('password_hash',hash).eq('active',true).single();
+    if(r.error||!r.data){err.textContent='بيانات الدخول غير صحيحة';err.classList.add('show');}
+    else{citizen=r.data;sessionStorage.setItem('cit',JSON.stringify(citizen));await sb.from('citizens').update({last_login:new Date().toISOString()}).eq('id',citizen.id);toast('✅ أهلاً '+citizen.full_name,'ok');showDash();}
+  }catch(e){err.textContent='خطأ في الاتصال';err.classList.add('show');}
+  btn.disabled=false;document.getElementById('login-btn-txt').textContent='دخول';
+}
+
+/* ══ LOGOUT ══ */
+function doLogout(){citizen=null;app=null;sessionStorage.removeItem('cit');showPage('welcome');toast('تم تسجيل الخروج','ok');}
+
+/* ══ DASHBOARD ══ */
+async function showDash(){
+  if(!citizen){showPage('login');return;}
+  showPage('dashboard');
+  var av=document.getElementById('dash-av');
+  if(av) av.textContent=(citizen.full_name||'م').charAt(0);
+  var nm=document.getElementById('dash-name');if(nm) nm.textContent=citizen.full_name||'—';
+  var ph=document.getElementById('dash-ph');if(ph) ph.textContent=citizen.phone||'—';
+  await loadApp();
+  // Realtime subscription
+  try{
+    sb.channel('citizen-app-'+citizen.national_id)
+      .on('postgres_changes',{event:'UPDATE',schema:'public',table:'passport_applications'},function(p){
+        if(p.new.national_id===citizen.national_id){app=p.new;renderDash();}
+      }).subscribe();
+  }catch(e){}
+}
+
+async function loadApp(){
+  if(!citizen||!sb) return;
+  try{
+    var r=await sb.from('passport_applications').select('*').eq('national_id',citizen.national_id).order('created_at',{ascending:false}).limit(1).single();
+    app=r.data||null;
+  }catch(e){app=null;}
+  renderDash();
+}
+
+function renderDash(){
+  var el=document.getElementById('dash-content');
+  if(!el) return;
+  if(!app){
+    el.innerHTML='<div style="text-align:center;padding:30px 16px;color:var(--muted);">'
+      +'<div style="font-size:38px;margin-bottom:10px;">📋</div>'
+      +'<div style="font-size:13px;font-weight:700;color:var(--ink);">لا يوجد طلب مسجل</div>'
+      +'<div style="font-size:11px;margin-top:4px;">قدّم طلبك الآن لبدء إجراءات جواز السفر</div>'
+      +'<button onclick="startForm()" style="margin-top:16px;padding:11px 24px;background:linear-gradient(135deg,var(--gm),var(--gd));color:#fff;border:none;border-radius:9px;font-size:14px;font-weight:800;cursor:pointer;font-family:Tajawal,Arial;">📋 تقديم طلب جديد</button>'
+      +'</div>';
+    return;
+  }
+  var st=app.status||'pending';
+  var cfg=ST[st]||ST.pending;
+  var isActive=['tabseet_approved','hall_entry','hall_fee_paid','passport_fee_paid','investigation','photography','urgent'].indexOf(st)>=0;
+  var isDone=['ready','delivered'].indexOf(st)>=0;
+  var isCancelled=st==='cancelled';
+
+  var html='<div class="sc '+cfg.cls+'">'
+    +'<div class="sc-stg">حالة طلبك</div>'
+    +'<div class="sc-status">'+cfg.lbl+'</div>'
+    +'<div style="font-size:12px;opacity:.85;line-height:1.6;">'+cfg.desc+'</div>';
+  if(app.notes&&(isCancelled||st==='cancelled')){html+='<div style="background:rgba(255,255,255,.15);border-radius:7px;padding:7px 10px;margin-top:8px;font-size:11px;">'+app.notes+'</div>';}
+  if(cfg.showQR){html+='<button class="sc-btn" onclick="showQR()">📱 عرض تصريح الدخول (QR)</button>';}
+  if(isCancelled||isDone){html+='<button class="sc-btn" onclick="startForm()" style="margin-right:8px;">📋 تقديم طلب جديد</button>';}
+  html+='<div class="sc-ref">'+app.ref_num+' · '+(app.created_at||'').slice(0,10)+'</div>'
+    +'<div class="sc-icon">'+cfg.ico+'</div></div>';
+
+  // Timeline
+  html+=buildTL(st);
+
+  // App info
+  html+='<div class="info-box"><div class="ib-title">📋 معلومات الطلب</div>'
+    +'<div class="ib-row"><span class="ib-lbl">رقم الطلب</span><span class="ib-val" style="font-family:monospace;">'+app.ref_num+'</span></div>'
+    +'<div class="ib-row"><span class="ib-lbl">نوع الطلب</span><span class="ib-val">'+(app.request_type==='renew'?'🔄 تجديد':'✨ إصدار جديد')+'</span></div>'
+    +'<div class="ib-row"><span class="ib-lbl">المنطقة</span><span class="ib-val">'+app.area+'</span></div>'
+    +'<div class="ib-row"><span class="ib-lbl">المستفيد</span><span class="ib-val">'+(app.person_type==='child'?'👶 طفل (50 ر.س)':'🧑 بالغ (100 ر.س)')+'</span></div>'
+    +'<div class="ib-row"><span class="ib-lbl">تاريخ التقديم</span><span class="ib-val">'+(app.created_at||'').slice(0,10)+'</span></div>'
+    +'</div>';
+  el.innerHTML=html;
+}
+
+function buildTL(currentSt){
+  var curIdx=ST_ORDER.indexOf(currentSt);
+  var html='<div class="tl"><div class="tl-title">📍 مسار الطلب</div>';
+  TL_STEPS.forEach(function(step,i){
+    var sIdx=ST_ORDER.indexOf(step.key);
+    var cls=sIdx<curIdx?'done':sIdx===curIdx?'active':'wait';
+    if(currentSt==='cancelled') cls=i===0?'done':'wait';
+    if(currentSt==='urgent'&&(step.key==='tabseet_approved')) cls='active';
+    var icon=cls==='done'?'✓':cls==='active'?step.ico:(i+1).toString();
+    html+='<div class="tl-item"><div class="tl-dot '+cls+'">'+icon+'</div><div class="tl-label '+cls+'">'+step.lbl+'</div></div>';
+    if(i<TL_STEPS.length-1) html+='<div class="tl-connector '+(sIdx<curIdx?'done':'wait')+'"></div>';
+  });
+  html+='</div>';
+  return html;
+}
+
+function goToDash(){if(citizen)showDash();else{showPage('welcome');}}
+
+/* ══ QR PASS ══ */
+function showQR(){
+  if(!app||!citizen) return;
+  var data=JSON.stringify({ref:app.ref_num,nid:app.national_id,name:app.full_name,type:app.request_type,person_type:app.person_type,ts:Date.now()});
+  document.getElementById('qr-name').textContent=app.full_name;
+  document.getElementById('qr-ref').textContent=app.ref_num;
+  document.getElementById('qr-nid').textContent='****'+(app.national_id||'').slice(-4);
+  document.getElementById('qr-type').textContent=app.request_type==='renew'?'تجديد':'إصدار جديد';
+  document.getElementById('qr-fee').textContent=app.person_type==='child'?'50 ر.س':'100 ر.س';
+  var cv=document.getElementById('qr-cv');
+  try{QRCode.toCanvas(cv,data,{width:180,margin:1,color:{dark:'#1a3d2b',light:'#ffffff'}},function(e){if(e)console.log(e);});}catch(e){}
+  showPage('qr');
+}
+
+function printQR(){
+  if(!app) return;
+  var cv=document.getElementById('qr-cv');
+  var img=cv?cv.toDataURL():'';
+  var fee=app.person_type==='child'?'50 ريال سعودي (طفل)':'100 ريال سعودي (بالغ)';
+  var typeL=app.request_type==='renew'?'تجديد جواز':'إصدار جديد';
+  var today=new Date().toLocaleDateString('ar-SA',{year:'numeric',month:'long',day:'numeric'});
+  var w=window.open('','_blank');
+  w.document.write('<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"/><title>تصريح '+app.ref_num+'</title>'
+    +'<style>@import url(\'https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;800;900&display=swap\');'
+    +'*{box-sizing:border-box;margin:0;padding:0;}'
+    +'body{font-family:Tajawal,Arial;direction:rtl;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f0f7f3;}'
+    +'@page{size:A6;margin:5mm;}'
+    +'.card{background:#fff;border:3px solid #1a3d2b;border-radius:12px;padding:14px;width:100%;max-width:240px;}'
+    +'.hdr{display:flex;align-items:center;gap:8px;margin-bottom:12px;padding-bottom:10px;border-bottom:2px dashed #c8e6d4;}'
+    +'.logo{width:34px;height:34px;background:#c9a84c;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:17px;}'
+    +'.org{font-size:11px;font-weight:900;color:#1a3d2b;}'
+    +'.sub{font-size:9px;color:#555;}'
+    +'.qr{text-align:center;margin:8px 0;}'
+    +'.qr img{width:150px;height:150px;}'
+    +'.name{font-size:13px;font-weight:900;color:#1a3d2b;text-align:center;margin-top:7px;}'
+    +'.ref{font-size:10px;color:#777;text-align:center;font-family:monospace;}'
+    +'.info{background:#e8f5ee;border-radius:7px;padding:7px;margin-top:9px;}'
+    +'.row{display:flex;justify-content:space-between;font-size:10px;padding:2px 0;}'
+    +'.note{text-align:center;font-size:9px;color:#e67e22;margin-top:8px;font-weight:700;}'
+    +'.date{text-align:center;font-size:8px;color:#aaa;margin-top:5px;}'
+    +'</style></head><body><div class="card">'
+    +'<div class="hdr"><div class="logo">🛂</div><div><div class="org">الجالية السودانية بجازان</div><div class="sub">تصريح دخول صالة الجوازات</div></div></div>'
+    +'<div class="qr"><img src="'+img+'" alt="QR"/></div>'
+    +'<div class="name">'+app.full_name+'</div>'
+    +'<div class="ref">'+app.ref_num+'</div>'
+    +'<div class="info">'
+    +'<div class="row"><span style="color:#555;">الرقم الوطني</span><span style="font-weight:700;direction:ltr;">****'+(app.national_id||'').slice(-4)+'</span></div>'
+    +'<div class="row"><span style="color:#555;">نوع الطلب</span><span style="font-weight:700;">'+typeL+'</span></div>'
+    +'<div class="row"><span style="color:#555;">رسوم الصالة</span><span style="font-weight:800;color:#1a3d2b;">'+fee+'</span></div>'
+    +'</div>'
+    +'<div class="note">⚠️ أبرز هذا التصريح عند دخول الصالة</div>'
+    +'<div class="date">'+today+'</div>'
+    +'</div>'
+    +'<scr'+'ipt>window.onload=function(){setTimeout(function(){window.print();},500);}<'+'/scr'+'ipt>'
+    +'</body></html>');
+  w.document.close();
+}
+
+/* ══ FORM ══ */
+function startForm(){
+  form={type:'',name:'',nid:'',phone:'',dob:'',gender:'',area:'',job:'',passport:'',notes:'',person_type:'adult',age:null};
+  files={passport:null,photo:null,guardian:null};
+  if(citizen){
+    form.name=citizen.full_name||'';
+    form.nid=citizen.national_id||'';
+    form.phone=citizen.phone||'';
+  }
+  showPage('step1');
+  // prefill
+  setTimeout(function(){
+    var nm=document.getElementById('r-name');if(nm&&form.name) nm.value=form.name;
+    var nd=document.getElementById('r-nid');if(nd&&form.nid) nd.value=form.nid;
+    var ph=document.getElementById('r-phone');if(ph&&form.phone) ph.value=form.phone;
+  },50);
+}
+
+function selType(t){
+  form.type=t;
+  document.querySelectorAll('.tc').forEach(function(c){c.classList.remove('active');});
+  var el=document.getElementById('tc-'+t);if(el) el.classList.add('active');
+  var pf=document.getElementById('pass-field');if(pf) pf.style.display=t==='renew'?'block':'none';
+}
+function step1Next(){if(!form.type){toast('اختر نوع الطلب','err');return;}showPage('step2');}
+
+function calcAge(d){if(!d)return null;var t=new Date(),b=new Date(d),a=t.getFullYear()-b.getFullYear();if(t.getMonth()<b.getMonth()||(t.getMonth()===b.getMonth()&&t.getDate()<b.getDate()))a--;return a;}
+function detectAge(d){
+  var badge=document.getElementById('age-badge');if(!badge)return;
+  var a=calcAge(d);if(a===null){badge.style.display='none';return;}
+  form.age=a;form.person_type=a<18?'child':'adult';
+  badge.textContent=a+' سنة · '+(a<18?'👶 طفل — رسوم 50 ر.س':'🧑 بالغ — رسوم 100 ر.س');
+  badge.style.display='inline-block';
+  var gs=document.getElementById('guardian-sec');if(gs) gs.style.display=a<18?'block':'none';
+}
+
+function step2Next(){
+  var nm=document.getElementById('r-name').value.trim();
+  var nid=document.getElementById('r-nid').value.trim();
+  var ph=document.getElementById('r-phone').value.trim();
+  var dob=document.getElementById('r-dob').value;
+  var gn=document.getElementById('r-gender').value;
+  var ar=document.getElementById('r-area').value;
+  var jb=document.getElementById('r-job').value;
+  if(!nm||nm.split(' ').filter(Boolean).length<2){toast('أدخل الاسم رباعياً على الأقل','err');return;}
+  if(nid.length!==11){toast('الرقم الوطني 11 رقم','err');return;}
+  if(!ph.startsWith('05')||ph.length!==10){toast('رقم الجوال غير صحيح','err');return;}
+  if(!dob){toast('أدخل تاريخ الميلاد','err');return;}
+  if(!gn){toast('اختر الجنس','err');return;}
+  if(!ar){toast('اختر المنطقة','err');return;}
+  if(!jb){toast('اختر المهنة','err');return;}
+  var age=calcAge(dob);
+  form.name=nm;form.nid=nid;form.phone=ph;form.dob=dob;form.gender=gn;form.area=ar;form.job=jb;
+  form.passport=document.getElementById('r-passport').value.trim();
+  form.notes=document.getElementById('r-notes').value.trim();
+  form.age=age;form.person_type=age!==null&&age<18?'child':'adult';
+  showPage('step3');
+}
+
+function handleFile(key,file){
+  if(!file) return;
+  if(file.size>5*1024*1024){toast('حجم الملف كبير — الحد الأقصى ٥ ميغابايت','err');return;}
+  var reader=new FileReader();
+  reader.onload=function(e){
+    files[key]={data:e.target.result,name:file.name,size:file.size,type:file.type};
+    var fn=document.getElementById('fname-'+key);if(fn) fn.textContent=file.name;
+    var fs=document.getElementById('fsize-'+key);if(fs) fs.textContent=(file.size/1024).toFixed(0)+' KB';
+    var th=document.getElementById('thumb-'+key);
+    if(th){if(file.type.startsWith('image/'))th.src=e.target.result;else th.src='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><text y="20" font-size="20">📄</text></svg>';}
+    var pv=document.getElementById('prev-'+key);if(pv) pv.classList.add('show');
+  };
+  reader.readAsDataURL(file);
+}
+function removeFile(key){files[key]=null;var pv=document.getElementById('prev-'+key);if(pv) pv.classList.remove('show');var fi=document.getElementById('f-'+key);if(fi) fi.value='';}
+
+function step3Next(){
+  if(!files.passport){toast('أرفق صورة الجواز أو الهوية','err');return;}
+  if(!files.photo){toast('أرفق الصورة الشخصية','err');return;}
+  if(form.person_type==='child'&&!files.guardian){toast('أرفق هوية الوصي للطفل','err');return;}
+  buildReview();showPage('step4');
+}
+
+function buildReview(){
+  var typeL=form.type==='renew'?'🔄 تجديد جواز':'✨ إصدار جديد';
+  var genL=form.gender==='male'?'ذكر':'أنثى';
+  var ptL=form.person_type==='child'?'👶 طفل (50 ر.س)':'🧑 بالغ (100 ر.س)';
+  var jobL=JL[form.job]||form.job;
+  var dayL=JD[form.job]||'الخميس';
+  var ph=document.getElementById('confirm-ph');if(ph) ph.textContent=form.phone;
+  var thumbs='';
+  if(files.photo&&files.photo.data) thumbs+='<img src="'+files.photo.data+'" style="width:60px;height:60px;border-radius:6px;object-fit:cover;border:1px solid var(--border);margin-left:6px;" title="الصورة الشخصية"/>';
+  if(files.passport&&files.passport.data&&files.passport.type&&files.passport.type.startsWith('image/')) thumbs+='<img src="'+files.passport.data+'" style="width:60px;height:60px;border-radius:6px;object-fit:cover;border:1px solid var(--border);" title="صورة الجواز"/>';
+  document.getElementById('review-area').innerHTML=
+    '<div class="info-box"><div class="ib-title">نوع الطلب</div><div class="ib-row"><span class="ib-lbl">النوع</span><span class="ib-val">'+typeL+'</span></div><div class="ib-row"><span class="ib-lbl">المستفيد</span><span class="ib-val">'+ptL+'</span></div></div>'
+    +'<div class="info-box"><div class="ib-title">البيانات الشخصية</div>'
+    +'<div class="ib-row"><span class="ib-lbl">الاسم</span><span class="ib-val">'+form.name+'</span></div>'
+    +'<div class="ib-row"><span class="ib-lbl">الرقم الوطني</span><span class="ib-val" style="direction:ltr;font-family:monospace;">'+form.nid+'</span></div>'
+    +'<div class="ib-row"><span class="ib-lbl">الجوال</span><span class="ib-val" style="direction:ltr;">'+form.phone+'</span></div>'
+    +'<div class="ib-row"><span class="ib-lbl">تاريخ الميلاد</span><span class="ib-val">'+form.dob+' ('+form.age+' سنة)</span></div>'
+    +'<div class="ib-row"><span class="ib-lbl">الجنس</span><span class="ib-val">'+genL+'</span></div>'
+    +'<div class="ib-row"><span class="ib-lbl">المنطقة</span><span class="ib-val">'+form.area+'</span></div>'
+    +'<div class="ib-row"><span class="ib-lbl">المهنة</span><span class="ib-val">'+jobL+'</span></div>'
+    +'<div class="ib-row"><span class="ib-lbl">📅 يوم الموعد</span><span class="ib-val" style="color:var(--gm);font-weight:800;">'+dayL+'</span></div>'
+    +(form.notes?'<div class="ib-row"><span class="ib-lbl">ملاحظات</span><span class="ib-val">'+form.notes+'</span></div>':'')
+    +'</div>'
+    +(thumbs?'<div class="info-box"><div class="ib-title">الصور المرفقة</div><div style="display:flex;gap:6px;margin-top:4px;">'+thumbs+'</div></div>':'');
+}
+
+async function submitForm(){
+  var btn=document.getElementById('submit-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> جاري الإرسال...';
+  try{
+    var ref='JZ-'+Math.floor(100000+Math.random()*900000);
+    var payload={
+      ref_num:ref,request_type:form.type,full_name:form.name,national_id:form.nid,
+      phone:form.phone,dob:form.dob,gender:form.gender,area:form.area,job:form.job,
+      person_type:form.person_type,age:form.age,notes:form.notes,
+      current_passport:form.passport||null,
+      status:'pending',created_at:new Date().toISOString(),updated_at:new Date().toISOString(),
+      personal_photo:files.photo?files.photo.data:null,
+      passport_doc:files.passport?files.passport.data:null,
+      guardian_doc:files.guardian?files.guardian.data:null,
+      citizen_uid:citizen?citizen.uid:null,
+    };
+    var r=await sb.from('passport_applications').insert(payload);
+    if(r.error) throw r.error;
+    document.getElementById('ref-num').textContent=ref;
+    // ربط الطلب بالمواطن
+    if(citizen){
+      app=payload;app.ref_num=ref;app.created_at=new Date().toISOString();
+    }
+    showPage('success');
+  }catch(e){toast('خطأ في الإرسال: '+e.message,'err');}
+  btn.disabled=false;btn.innerHTML='📤 تقديم الطلب';
+}
+</script>
+</body>
+</html>
